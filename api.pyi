@@ -95,6 +95,7 @@ class RawContext:
     npc: List[Atom]  # 返回 NPC 类型的 Atom 列表
     other_players: List[Atom]  # 返回除context.me以外的 player 类型的 Atom 列表
     sun: List[Atom]  # 返回 sun 类型的 Atom 列表
+    step: int
 
     def get_atom_by_id(self, atom_id: str) -> Atom: ...  # 返回指定 id 对应的 Atom 星体
 
