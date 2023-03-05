@@ -23,6 +23,8 @@ def cal_will_collide(x1, y1, vx1, vy1, x2, y2, vx2, vy2, r1, r2) -> bool:
     print("cal", t1, t2)
     if math.isnan(t1) or math.isnan(t2):
         return False
+    if t1 < -2 and t2 < -2:
+        return False
     return True
 
 
@@ -52,7 +54,7 @@ def update(context: api.RawContext):
     angles = []
     for i in context.enemies:
         angle = api.relative_angle(context.me.x, context.me.y, i.x, i.y, 0)
-        angles += [angle, angle + 180, angle - 180, angle + 90, angle - 90]
+        angles += [angle, angle + 180, angle + 90, angle - 90]
     for i in angles:
         radian = api.angle_to_radian(i)
         size = context.me.mass * api.SHOOT_AREA_RATIO
@@ -72,4 +74,4 @@ def update(context: api.RawContext):
             best_shouyi = cal_shouyi(context.me.mass - size, coll_list)
             best_rad = radian
     if best_rad != -1:
-        return best_rad.add_degree(180).normalize()
+        return best_rad
