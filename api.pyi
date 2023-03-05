@@ -1,5 +1,5 @@
 from collections import namedtuple
-from typing import List, Union, Literal
+from typing import List, Union, Literal, Tuple
 
 
 def find_neighbors(atom: Atom, others: Union[List[Atom], None] = None, close_to_far: bool = True,
@@ -26,6 +26,10 @@ class Atom:
     x: float
     y: float
 
+    def __init__(self, id: str, type: str, x: float, y: float, vx: float, vy: float, mass: float,
+                 radius: float,
+                 rotation: float, being_absorbed: bool, colliding: bool): ...
+
     def degree_to(self, point_x: float, point_y: float) -> Degree: ...
 
     def degree_to_atom(self, atom: Atom) -> Degree: ...
@@ -38,7 +42,7 @@ class Atom:
 
     def get_forward_direction_atoms(self, atoms: List[Atom]) -> List[Atom]: ...
 
-    def get_shoot_change_velocity(self, theta: Union[float, Radian]) -> (float, float): ...
+    def get_shoot_change_velocity(self, theta: Union[float, Radian]) -> Tuple[float, float]: ...
 
     def radian_to(self, point_x: float, point_y: float) -> Radian: ...
 
@@ -124,13 +128,15 @@ class Cartesian:
 
 
 class Velocity(Cartesian):
-    def __init__(self, x: float, y: float, z: float, dtype: int): ...
+    def __init__(self, x: float, y: float = None, z: float = None, dtype: int = None): ...
 
-    def direction(self, unit: Literal["degree", "radion"]) -> Union[Degree, Radion]: ...
+    def direction(self, unit: Literal["degree", "radion"]) -> Union[Degree, Radian]: ...
 
 
-class Angle:
+class Angle(float):
     x: float
+
+    def __init__(self, x: float): ...
 
 
 class Degree(Angle):
