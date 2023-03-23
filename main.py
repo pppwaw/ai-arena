@@ -93,9 +93,10 @@ def update(context: api.RawContext):
     for i in context.monsters + context.other_players + context.npc:
         angle = api.relative_angle(context.me.x, context.me.y, i.x, i.y, 0)
         angles += [(angle + 180) % 360, (angle + 90) % 360, (angle - 90) % 360]
-    print(cishu, angles)
-    for i in angles:
-        radian = api.angle_to_radian(i)
+    radians = sorted(list(set([round(api.angle_to_radian(i), 2) for i in angles])))
+    print(cishu, radians)
+    for i in radians:
+        radian = i
         size = context.me.mass * api.SHOOT_AREA_RATIO
         x, y = context.me.get_shoot_change_velocity(radian)
         print(i, "will change v", x, y)
