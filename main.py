@@ -43,8 +43,12 @@ def cal_will_collide(x1, y1, vx1, vy1, x2, y2, vx2, vy2, r1, r2) -> (bool, float
         return True, tt
 
 
-def cal_shouyi(mass, coll_list) -> float:
-    shouyi = mass - mass * api.SHOOT_AREA_RATIO
+def cal_shouyi(mass, coll_list, pen: bool) -> float:
+    if pen:
+
+        shouyi = mass * (1 - api.SHOOT_AREA_RATIO)
+    else:
+        shouyi = mass
     for i in coll_list:
         if mass <= i[0].mass:
             return -mass
@@ -78,7 +82,7 @@ def update(context: api.RawContext):
     # print(" ".join([i.type for i in context.monsters + context.other_players + context.npc]))
     coll_list, sum_col = get_coll_list(context, x, y)
     if len(coll_list) != 0:
-        best_shouyi = cal_shouyi(context.me.mass, coll_list)
+        best_shouyi = cal_shouyi(context.me.mass, coll_list,False)
         if best_shouyi < 0:
             best_shouyi -= 100 / sum_col
         else:
@@ -98,12 +102,11 @@ def update(context: api.RawContext):
     print(cishu, angles)
     for i in angles:
         radian = api.angle_to_radian(i)
-        size = context.me.mass * api.SHOOT_AREA_RATIO
         x, y = context.me.get_shoot_change_velocity(radian)
         print(i, "will change v", x, y)
         coll_list, sum_col = get_coll_list(context, x, y)
         if len(coll_list) != 0:
-            shouyi = cal_shouyi(context.me.mass, coll_list)
+            shouyi = cal_shouyi(context.me.mass, coll_list,True)
             if shouyi < 0:
                 shouyi -= 100 / sum_col
             else:
@@ -115,7 +118,7 @@ def update(context: api.RawContext):
               [Coll(i[0].x, i[0].y, i[0].vx, i[0].vy, i[0].type, i[0].mass, i[1]) for i in coll_list])
         print(cishu, i, "shouyi", shouyi)
         if shouyi > best_shouyi:
-            best_shouyi = cal_shouyi(context.me.mass - size, coll_list)
+            best_shouyi = shouyi
             best_rad = radian
             best_angle = i
     print(cishu, "best", best_angle, best_rad, best_shouyi)
