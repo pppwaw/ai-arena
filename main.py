@@ -84,9 +84,9 @@ def update(context: api.RawContext):
         best_shouyi = cal_shouyi(context.me.mass, coll_list, False)
         t = sum_col / sqrt(x ** 2 + y ** 2)
         if best_shouyi < 0:
-            best_shouyi -= 20 / t
+            best_shouyi -=  (100/t**2)
         else:
-            best_shouyi += 20 / t
+            best_shouyi +=  (100/t**2)
         best_shouyi = round(best_shouyi, 2)
     else:
         best_shouyi = 0
@@ -109,9 +109,9 @@ def update(context: api.RawContext):
             shouyi = cal_shouyi(context.me.mass, coll_list, True)
             t = sum_col / sqrt(x ** 2 + y ** 2)
             if shouyi < 0:
-                shouyi -= 20 / t
+                shouyi -=(100/t**2)
             else:
-                shouyi += 20 / t
+                shouyi +=  (100/t**2)
             shouyi = round(shouyi, 2)
         else:
             shouyi = 0
