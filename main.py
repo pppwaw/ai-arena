@@ -67,8 +67,7 @@ def get_coll_list(context, x, y):
         if cal:
             coll_list.append((j, t))
             sum_col += t
-    coll_list.sort(key=lambda atom: math.sqrt((context.me.x - atom[0].x) ** 2 + (
-            context.me.y - atom[0].y) ** 2))
+    coll_list.sort(key=lambda atom: atom[1])
 
     return coll_list, sum_col
 
@@ -82,11 +81,12 @@ def update(context: api.RawContext):
     # print(" ".join([i.type for i in context.monsters + context.other_players + context.npc]))
     coll_list, sum_col = get_coll_list(context, x, y)
     if len(coll_list) != 0:
-        best_shouyi = cal_shouyi(context.me.mass, coll_list,False)
+        best_shouyi = cal_shouyi(context.me.mass, coll_list, False)
+        t = sum_col / sqrt(x ** 2 + y ** 2)
         if best_shouyi < 0:
-            best_shouyi -= 100 / sum_col
+            best_shouyi -= 20 / t
         else:
-            best_shouyi += 100 / sum_col
+            best_shouyi += 20 / t
         best_shouyi = round(best_shouyi, 2)
     else:
         best_shouyi = 0
@@ -106,11 +106,12 @@ def update(context: api.RawContext):
         print(i, "will change v", x, y)
         coll_list, sum_col = get_coll_list(context, x, y)
         if len(coll_list) != 0:
-            shouyi = cal_shouyi(context.me.mass, coll_list,True)
+            shouyi = cal_shouyi(context.me.mass, coll_list, True)
+            t = sum_col / sqrt(x ** 2 + y ** 2)
             if shouyi < 0:
-                shouyi -= 100 / sum_col
+                shouyi -= 20 / t
             else:
-                shouyi += 100 / sum_col
+                shouyi += 20 / t
             shouyi = round(shouyi, 2)
         else:
             shouyi = 0
