@@ -4,6 +4,7 @@ from collections import namedtuple
 import api
 
 Coll = namedtuple('Coll', ['x', 'y', "vx", "vy", "type", "mass", "time"])
+cishu = 0
 
 
 def cal_will_collide(x1, y1, vx1, vy1, x2, y2, vx2, vy2, r1, r2) -> (bool, float):
@@ -69,6 +70,7 @@ def get_coll_list(context, x, y):
 
 
 def update(context: api.RawContext):
+    global cishu
     if context.step % 10 != 0:
         return None
     x, y = context.me.vx, context.me.vy
@@ -84,13 +86,14 @@ def update(context: api.RawContext):
     else:
         best_shouyi = 0
     best_rad = -114
-    print("no coll_list", [Coll(i[0].x, i[0].y, i[0].vx, i[0].vy, i[0].type, i[0].mass, i[1]) for i in coll_list])
-    print("no", best_shouyi)
+    print(cishu, "no coll_list",
+          [Coll(i[0].x, i[0].y, i[0].vx, i[0].vy, i[0].type, i[0].mass, i[1]) for i in coll_list])
+    print(cishu, "no", best_shouyi)
     angles = []
     for i in context.monsters + context.other_players + context.npc:
         angle = api.relative_angle(context.me.x, context.me.y, i.x, i.y, 0)
         angles += [(angle + 180) % 360, (angle + 90) % 360, (angle - 90) % 360]
-    print(angles)
+    print(cishu, angles)
     for i in angles:
         radian = api.angle_to_radian(i)
         size = context.me.mass * api.SHOOT_AREA_RATIO
@@ -106,11 +109,13 @@ def update(context: api.RawContext):
             shouyi = round(shouyi, 2)
         else:
             shouyi = 0
-        print(i, "coll_list", [Coll(i[0].x, i[0].y, i[0].vx, i[0].vy, i[0].type, i[0].mass, i[1]) for i in coll_list])
-        print(i, "shouyi", shouyi)
+        print(cishu, i, "coll_list",
+              [Coll(i[0].x, i[0].y, i[0].vx, i[0].vy, i[0].type, i[0].mass, i[1]) for i in coll_list])
+        print(cishu, i, "shouyi", shouyi)
         if shouyi > best_shouyi:
             best_shouyi = cal_shouyi(context.me.mass - size, coll_list)
             best_rad = radian
-    print("best", best_rad, best_shouyi)
+    print(cishu, "best", best_rad, best_shouyi)
     if best_rad != -114:
+        cishu += 1
         return best_rad
