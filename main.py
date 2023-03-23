@@ -36,7 +36,10 @@ def cal_will_collide(x1, y1, vx1, vy1, x2, y2, vx2, vy2, r1, r2) -> (bool, float
         tt = t1
     else:
         tt = min(t1, t2)
-    return True, tt
+    if (x1 * tt < 0 or y1 * tt < 0):
+        return False, 0
+    else:
+        return True, tt
 
 
 def cal_shouyi(mass, coll_list) -> float:
@@ -53,9 +56,9 @@ def get_coll_list(context, x, y):
     coll_list = []
     sum_col = 0
     for j in context.monsters + context.other_players + context.npc:
-        if (x + j.vx) ** 2 + (y + j.vy) ** 2 < 0.1:
-            continue
+
         cal, t = cal_will_collide(context.me.x, context.me.y, x, y, j.x, j.y, j.vx, j.vy, context.me.radius, j.radius)
+
         if cal:
             coll_list.append((j, t))
             sum_col += t
@@ -86,12 +89,13 @@ def update(context: api.RawContext):
     angles = []
     for i in context.monsters + context.other_players + context.npc:
         angle = api.relative_angle(context.me.x, context.me.y, i.x, i.y, 0)
-        angles += [(angle + 120) % 360, (angle + 90) % 360, (angle - 90) % 360]
+        angles += [(angle + 180) % 360, (angle + 90) % 360, (angle - 90) % 360]
     print(angles)
     for i in angles:
         radian = api.angle_to_radian(i)
         size = context.me.mass * api.SHOOT_AREA_RATIO
         x, y = context.me.get_shoot_change_velocity(radian)
+        print(i, "will change v", x, y)
         coll_list, sum_col = get_coll_list(context, x, y)
         if len(coll_list) != 0:
             shouyi = cal_shouyi(context.me.mass, coll_list)
