@@ -73,15 +73,16 @@ def update(context: api.RawContext):
     global cishu
     if context.step % 10 != 0:
         return None
+    print(cishu, "me", context.me.x, context.me.y, context.me.vx, context.me.vy, context.me.mass, context.me.radius)
     x, y = context.me.vx, context.me.vy
     # print(" ".join([i.type for i in context.monsters + context.other_players + context.npc]))
     coll_list, sum_col = get_coll_list(context, x, y)
     if len(coll_list) != 0:
         best_shouyi = cal_shouyi(context.me.mass, coll_list)
         if best_shouyi < 0:
-            best_shouyi -= 10 / sum_col
+            best_shouyi -= 100 / sum_col
         else:
-            best_shouyi += 10 / sum_col
+            best_shouyi += 100 / sum_col
         best_shouyi = round(best_shouyi, 2)
     else:
         best_shouyi = 0
@@ -104,9 +105,9 @@ def update(context: api.RawContext):
         if len(coll_list) != 0:
             shouyi = cal_shouyi(context.me.mass, coll_list)
             if shouyi < 0:
-                shouyi -= 10 / sum_col
+                shouyi -= 100 / sum_col
             else:
-                shouyi += 10 / sum_col
+                shouyi += 100 / sum_col
             shouyi = round(shouyi, 2)
         else:
             shouyi = 0
