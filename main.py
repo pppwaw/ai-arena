@@ -36,8 +36,8 @@ def handle_shanbi(context: api.RawContext):
     me = context.me
     enemies = [i for i in context.enemies.copy() if i.type != "bullet"]
     enemies.sort(key=lambda x: me.distance_to(x))
-    print(f"shanbi me={print_atom(me)}")
-    print(f"shanbi enemies={[print_atom(i) for i in enemies]}")
+    # print(f"shanbi me={print_atom(me)}")
+    # print(f"shanbi enemies={[print_atom(i) for i in enemies]}")
     for e in enemies:
         if e.mass > me.mass and e.whether_collide(me):
             print(f"shanbi {print_atom(e)} will collide")
