@@ -34,12 +34,12 @@ def print_atom(atom: api.Atom):
 
 def handle_shanbi(context: api.RawContext):
     me = context.me
-    enemies = [i for i in context.enemies.copy() if i.type != "bullet"]
+    enemies = [i for i in context.enemies.copy() if i.type != "bullet" and i.mass > me.mass]
     enemies.sort(key=lambda x: me.distance_to(x))
     # print(f"shanbi me={print_atom(me)}")
     # print(f"shanbi enemies={[print_atom(i) for i in enemies]}")
     for e in enemies:
-        if e.mass > me.mass and e.whether_collide(me):
+        if e.whether_collide(me):
             print(f"shanbi {print_atom(e)} will collide")
             # jd = jiaodu(me, e)
             cr = (e.vx - me.vx) * (e.y - me.y) - (e.vy - me.vy) * (e.x - me.x)
@@ -55,15 +55,14 @@ def handle_shanbi(context: api.RawContext):
 
 
 def handle_target(context: api.RawContext):
-    pass
-
+    me = context.me
+    enemies = [i for i in context.enemies.copy() if i.mass < me.mass]
 
 def handler(context: api.RawContext):
     if context.step % 3 == 0:
         handle_shanbi(context)
     elif context.step % 5 == 0:
         handle_target(context)
-
 
 def update(context: api.RawContext):
     handler(context)
