@@ -70,8 +70,12 @@ def handle_target(context: api.RawContext):
             max_qw = qw
             max_atom = i
     print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
-    for i in range(5):
-        q.put(data(False, jiaodu(me, max_atom)))
+    if not me.colliding:
+        for i in range(3):
+            q.put(data(False, jiaodu(me, max_atom)))
+    else:
+        print("colliding, don't shoot")
+    # q.put(data(True, 2))
 
 
 def handler(context: api.RawContext):
