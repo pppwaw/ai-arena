@@ -38,6 +38,7 @@ def handle_shanbi(context: api.RawContext):
     enemies.sort(key=lambda x: me.distance_to(x))
     # print(f"shanbi me={print_atom(me)}")
     # print(f"shanbi enemies={[print_atom(i) for i in enemies]}")
+    print("******shanbi******")
     for e in enemies:
         if e.whether_collide(me):
             print(f"shanbi {print_atom(e)} will collide")
@@ -52,6 +53,7 @@ def handle_shanbi(context: api.RawContext):
             for i in range(3):
                 q.put(data(False, ang))
             break
+    print("******shanbi******")
 
 
 def handle_target(context: api.RawContext):
@@ -60,6 +62,7 @@ def handle_target(context: api.RawContext):
     # 先找没遮挡的目标
     atoms = api.find_neighbors(me, enemies)
     max_qw, max_atom = 0, atoms[0]
+    print("******target******")
     for i in atoms:
         print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
         x, y = me.get_shoot_change_velocity(jiaodu(me, i))
@@ -76,6 +79,7 @@ def handle_target(context: api.RawContext):
     else:
         print("colliding, don't shoot")
     # q.put(data(True, 2))
+    print("******target******")
 
 
 def handler(context: api.RawContext):
