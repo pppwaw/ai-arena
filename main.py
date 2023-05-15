@@ -69,7 +69,8 @@ def handle_target(context: api.RawContext):
             print(f"{print_atom(i)} qw:{qw}")
             max_qw = qw
             max_atom = i
-    for i in range(3):
+    print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
+    for i in range(5):
         q.put(data(False, jiaodu(me, max_atom)))
 
 
