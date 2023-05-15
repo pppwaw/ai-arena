@@ -56,13 +56,29 @@ def handle_shanbi(context: api.RawContext):
 
 def handle_target(context: api.RawContext):
     me = context.me
-    enemies = [i for i in context.enemies.copy() if i.mass < me.mass]
+    enemies = [i for i in context.enemies if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO]
+    # 先找没遮挡的目标
+    atoms = api.find_neighbors(me, enemies)
+    max_qw, max_atom = 0, atoms[0]
+    for i in atoms:
+        print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
+        x, y = me.get_shoot_change_velocity(jiaodu(me, i))
+        t = abs(i.x - me.x) / x
+        qw = me.mass + i.mass - me.mass * api.SHOOT_AREA_RATIO + t / 1000
+        if qw > max_qw:
+            print(f"{print_atom(i)} qw:{qw}")
+            max_qw = qw
+            max_atom = i
+    for i in range(3):
+        q.put(data(False, jiaodu(me, max_atom)))
+
 
 def handler(context: api.RawContext):
     if context.step % 3 == 0:
         handle_shanbi(context)
     elif context.step % 5 == 0:
         handle_target(context)
+
 
 def update(context: api.RawContext):
     handler(context)
