@@ -45,6 +45,13 @@ def hebing(angs):
     return api.relative_radian(0, 0, x, y)
 
 
+def cal_t(x, y, vx, vy):
+    if x / vx < 0 or y / vy < 0:
+        return -1
+    else:
+        return (x / vx + y / vy) / 2
+
+
 def handle_shanbi(context: api.RawContext):
     me = context.me
     enemies = [i for i in context.enemies.copy() if i.type != "bullet" and i.mass > me.mass]
@@ -89,7 +96,7 @@ def handle_target(context: api.RawContext):
             continue
         print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
         x, y = me.get_shoot_change_velocity(jiaodu(me, i))
-        t = abs(i.x - me.x) / x
+        t = cal_t(abs(i.x - me.x), abs(i.y - me.y), x, y)
         qw = i.mass - me.mass * api.SHOOT_AREA_RATIO * 2.5 + t / 1000
         if qw > max_qw:
             print(f"{print_atom(i)} qw:{qw} t:{t}")
