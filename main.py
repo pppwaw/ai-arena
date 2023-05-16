@@ -9,7 +9,7 @@ data = namedtuple("data", ["is_space", "data"])
 step = ""
 q = Queue()
 spaces = 0
-Atom = namedtuple("Atom", ["x", "y", "vx", "vy", "r", "mass"])
+Atom = namedtuple("Atom", ["x", "y", "vx", "vy", "r", "mass", "type"])
 
 cal = lambda x1, vx1, x2, vx2, y1, vy1, y2, vy2, r1, r2, t: \
     (x1 + vx1 * t - x2 - vx2 * t) ** 2 + (y1 + vy1 * t - y2 - vy2 * t) ** 2 - (r1 + r2) ** 2
@@ -28,8 +28,21 @@ def jiaodu(me: Atom, atom: Atom):
 
 
 def print_atom(atom: api.Atom):
-    return Atom(round(atom.x, 3), round(atom.y, 3), round(atom.vx, 3), round(atom.vy, 3), round(atom.radian, 3),
-                round(atom.mass, 3))
+    if atom:
+        return Atom(round(atom.x, 3), round(atom.y, 3), round(atom.vx, 3), round(atom.vy, 3), round(atom.radian, 3),
+                    round(atom.mass, 3), atom.type)
+    else:
+        return None
+
+
+def hebing(angs):
+    x, y = 0, 0
+    for i in angs:
+        xx = math.cos(i)
+        yy = math.sin(i)
+        x += xx
+        y += yy
+    return api.relative_radian(0, 0, x, y)
 
 
 def handle_shanbi(context: api.RawContext):
@@ -39,9 +52,13 @@ def handle_shanbi(context: api.RawContext):
     # print(f"shanbi me={print_atom(me)}")
     # print(f"shanbi enemies={[print_atom(i) for i in enemies]}")
     print("******shanbi******")
+    angs = []
     for e in enemies:
         if e.whether_collide(me):
             print(f"shanbi {print_atom(e)} will collide")
+            if e.distance_to(me) / api.distance(0, 0, e.vx, e.vy) > 10:
+                print("More than 10s, ignore")
+                continue
             # jd = jiaodu(me, e)
             cr = (e.vx - me.vx) * (e.y - me.y) - (e.vy - me.vy) * (e.x - me.x)
             # print(f"shanbi cr={cr}, jd={api.r2a(jd)} angle={api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy)}")
@@ -49,10 +66,14 @@ def handle_shanbi(context: api.RawContext):
                 ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) + 90)
             else:
                 ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) - 90)
-            while not q.empty(): q.get()
-            for i in range(3):
-                q.put(data(False, ang))
-            break
+            angs.append(ang)
+    print(f"angs: {angs}")
+    ang = hebing(angs)
+    if angs:
+        print(f"final ang: {ang}")
+        while not q.empty(): q.get()
+        for i in range(3):
+            q.put(data(False, ang))
     print("******shanbi******")
 
 
@@ -61,28 +82,34 @@ def handle_target(context: api.RawContext):
     enemies = [i for i in context.enemies if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO]
     # 先找没遮挡的目标
     atoms = api.find_neighbors(me, enemies)
-    max_qw, max_atom = 0, atoms[0]
+    max_qw, max_atom = 0, None
     print("******target******")
     for i in atoms:
+        if api.distance(0, 0, i.vx, i.vy) > 100:
+            continue
         print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
         x, y = me.get_shoot_change_velocity(jiaodu(me, i))
         t = abs(i.x - me.x) / x
-        qw = me.mass + i.mass - me.mass * api.SHOOT_AREA_RATIO + t / 1000
+        qw = i.mass - me.mass * api.SHOOT_AREA_RATIO + t / 1000
         if qw > max_qw:
             print(f"{print_atom(i)} qw:{qw}")
             max_qw = qw
             max_atom = i
-    print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
-    if not me.colliding:
-        for i in range(3):
-            q.put(data(False, jiaodu(me, max_atom)))
+    if max_atom:
+        print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
+        if not me.colliding:
+            for i in range(3):
+                q.put(data(False, jiaodu(me, max_atom)))
+        else:
+            print("colliding, don't shoot")
     else:
-        print("colliding, don't shoot")
+        print("No atom, don't shoot")
     # q.put(data(True, 2))
     print("******target******")
 
 
 def handler(context: api.RawContext):
+    print(f"me: {print_atom(context.me)}")
     if context.step % 3 == 0:
         handle_shanbi(context)
     elif context.step % 5 == 0:
