@@ -79,7 +79,7 @@ def handle_shanbi(context: api.RawContext):
 
 def handle_target(context: api.RawContext):
     me = context.me
-    enemies = [i for i in context.enemies if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO]
+    enemies = [i for i in context.enemies if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO * 2.5]
     # 先找没遮挡的目标
     atoms = api.find_neighbors(me, enemies)
     max_qw, max_atom = 0, None
@@ -90,15 +90,15 @@ def handle_target(context: api.RawContext):
         print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
         x, y = me.get_shoot_change_velocity(jiaodu(me, i))
         t = abs(i.x - me.x) / x
-        qw = i.mass - me.mass * api.SHOOT_AREA_RATIO + t / 1000
+        qw = i.mass - me.mass * api.SHOOT_AREA_RATIO * 2.5 + t / 1000
         if qw > max_qw:
-            print(f"{print_atom(i)} qw:{qw}")
+            print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
             max_atom = i
     if max_atom:
         print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
         if not me.colliding:
-            for i in range(3):
+            for i in range(2):
                 q.put(data(False, jiaodu(me, max_atom)))
         else:
             print("colliding, don't shoot")
