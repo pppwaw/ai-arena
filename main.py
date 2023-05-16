@@ -86,18 +86,26 @@ def handle_shanbi(context: api.RawContext):
 
 def handle_target(context: api.RawContext):
     me = context.me
-    enemies = [i for i in context.enemies if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO * 2.5]
-    # 先找没遮挡的目标
-    atoms = api.find_neighbors(me, enemies)
-    max_qw, max_atom = 0, None
+
+    max_qw, max_atom, shoot = 0, None, False
+
     print("******target******")
+    # 先看不动
+    enemies = [i for i in context.enemies if i.mass < me.mass - me.mass]
+
+    atoms = me.get_forward_direction_atoms(enemies)
+
+    # 再找没遮挡的目标
+    enemies = [i for i in context.enemies if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO * 2]
+
+    atoms = api.find_neighbors(me, enemies)
     for i in atoms:
         if api.distance(0, 0, i.vx, i.vy) > 100:
             continue
         print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
         x, y = me.get_shoot_change_velocity(jiaodu(me, i))
-        t = cal_t(abs(i.x - me.x), abs(i.y - me.y), x, y)
-        qw = i.mass - me.mass * api.SHOOT_AREA_RATIO * 2.5 + t / 1000
+        t = cal_t((i.x - me.x), (i.y - me.y), x, y)
+        qw = i.mass - me.mass * api.SHOOT_AREA_RATIO * 2 + t / 1000
         if qw > max_qw:
             print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
