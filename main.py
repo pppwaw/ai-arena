@@ -91,10 +91,10 @@ def handle_target(context: api.RawContext):
 
     print("******target******")
     # 先看不动
-    enemies = [i for i in context.enemies if i.mass < me.mass - me.mass]
-
+    enemies = [i for i in context.enemies if i.mass < me.mass]
     atoms = me.get_forward_direction_atoms(enemies)
     atoms.sort(key=lambda x: me.distance_to(x))
+    print(f"stright forward atoms:{[print_atom(i) for i in atoms]}")
     if atoms:
         i = atoms[0]
         print(f"stright forward atom:{i}")
