@@ -47,7 +47,7 @@ def hebing(angs):
 
 def cal_t(x, y, vx, vy):
     if x / vx < 0 or y / vy < 0:
-        return -1
+        return -1000
     else:
         return (x / vx + y / vy) / 2
 
@@ -94,7 +94,14 @@ def handle_target(context: api.RawContext):
     enemies = [i for i in context.enemies if i.mass < me.mass - me.mass]
 
     atoms = me.get_forward_direction_atoms(enemies)
-
+    atoms.sort(key=lambda x: me.distance_to(x))
+    if atoms:
+        i = atoms[0]
+        print(f"stright forward atom:{i}")
+        t = cal_t((i.x - me.x), (i.y - me.y), me.vx, me.vy)
+        qw = atoms[0].mass + t / 1000
+        max_qw = qw
+        max_atom = i
     # 再找没遮挡的目标
     enemies = [i for i in context.enemies if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO * 2]
 
@@ -110,13 +117,17 @@ def handle_target(context: api.RawContext):
             print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
             max_atom = i
+            shoot = True
     if max_atom:
         print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
-        if not me.colliding:
-            for i in range(2):
-                q.put(data(False, jiaodu(me, max_atom)))
+        if shoot:
+            if not me.colliding:
+                for i in range(2):
+                    q.put(data(False, jiaodu(me, max_atom)))
+            else:
+                print("colliding, don't shoot")
         else:
-            print("colliding, don't shoot")
+            print("Don't need to shoot")
     else:
         print("No atom, don't shoot")
     # q.put(data(True, 2))
@@ -132,6 +143,8 @@ def handler(context: api.RawContext):
 
 
 def update(context: api.RawContext):
+    if context.step % 30 == 0:
+        print(f"{context.step // 30} second")
     handler(context)
     global spaces
     if spaces:
