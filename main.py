@@ -22,9 +22,16 @@ cal = lambda x1, vx1, x2, vx2, y1, vy1, y2, vy2, r1, r2, t: \
 #     max_t = 100
 #     while ()
 
+def GoodAngle(me, m, s):
+    mX = m.x + (m.vx - me.vx) * s
+    mY = m.y + (m.vy - me.vy) * s
+    return api.a2r(api.relative_angle(me.x, me.y, mX, mY) + 180)
+
 
 def jiaodu(me: Atom, atom: Atom):
-    return api.a2r(api.relative_angle(me.x, me.y, atom.x + atom.vx - me.vx, atom.y + atom.vy - me.vy) + 180)
+    return GoodAngle(me, atom, 1)
+    r_vx, r_vy = atom.vx - me.vx, atom.vy - me.vy
+    return api.a2r(api.relative_angle(me.x, me.y, atom.x + r_vx, atom.y + r_vy) + 180)
 
 
 def print_atom(atom: api.Atom):
@@ -47,7 +54,7 @@ def hebing(angs):
 
 def cal_t(x, y, vx, vy):
     if x / vx < 0 or y / vy < 0:
-        return -1000
+        return -10000
     else:
         return (x / vx + y / vy) / 2
 
@@ -138,7 +145,7 @@ def handler(context: api.RawContext):
     print(f"me: {print_atom(context.me)}")
     if context.step % 3 == 0:
         handle_shanbi(context)
-    elif context.step % 5 == 0:
+    elif context.step % 10 == 0:
         handle_target(context)
 
 
