@@ -10,10 +10,8 @@ step = ""
 q = Queue()
 spaces = 0
 Atom = namedtuple("Atom", ["x", "y", "vx", "vy", "r", "mass", "type"])
-
-cal = lambda x1, vx1, x2, vx2, y1, vy1, y2, vy2, r1, r2, t: \
-    (x1 + vx1 * t - x2 - vx2 * t) ** 2 + (y1 + vy1 * t - y2 - vy2 * t) ** 2 - (r1 + r2) ** 2
-
+SHANBI_CISHU = 3
+TARGET_CISHU = 3
 
 # def will_coll(atom1: Atom, atom2: Atom):
 #     # (x1+vx1t-x2-vx2t)^2+(y1+vy1t-y2-vy2t)^2-(r1+r2)^2=0
@@ -29,7 +27,7 @@ def GoodAngle(me, m, s):
 
 
 def jiaodu(me: Atom, atom: Atom):
-    return GoodAngle(me, atom, 1)
+    return GoodAngle(me, atom, 1.5)
     r_vx, r_vy = atom.vx - me.vx, atom.vy - me.vy
     return api.a2r(api.relative_angle(me.x, me.y, atom.x + r_vx, atom.y + r_vy) + 180)
 
@@ -86,7 +84,7 @@ def handle_shanbi(context: api.RawContext):
     if angs:
         print(f"final ang: {ang}")
         while not q.empty(): q.get()
-        for i in range(3):
+        for i in range(SHANBI_CISHU):
             q.put(data(False, ang))
     print("******shanbi******")
 
@@ -110,7 +108,7 @@ def handle_target(context: api.RawContext):
         max_qw = qw
         max_atom = i
     # 再找没遮挡的目标
-    enemies = [i for i in context.enemies if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO * 2]
+    enemies = [i for i in context.enemies if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU]
 
     atoms = api.find_neighbors(me, enemies)
     for i in atoms:
@@ -119,7 +117,7 @@ def handle_target(context: api.RawContext):
         print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
         x, y = me.get_shoot_change_velocity(jiaodu(me, i))
         t = cal_t((i.x - me.x), (i.y - me.y), x, y)
-        qw = i.mass - me.mass * api.SHOOT_AREA_RATIO * 2 + t / 1000
+        qw = i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU + t / 1000
         if qw > max_qw:
             print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
@@ -129,7 +127,7 @@ def handle_target(context: api.RawContext):
         print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
         if shoot:
             if not me.colliding:
-                for i in range(2):
+                for i in range(TARGET_CISHU):
                     q.put(data(False, jiaodu(me, max_atom)))
             else:
                 print("colliding, don't shoot")
