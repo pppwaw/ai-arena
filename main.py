@@ -13,6 +13,7 @@ Atom = namedtuple("Atom", ["x", "y", "vx", "vy", "r", "mass", "type"])
 SHANBI_CISHU = 3
 TARGET_CISHU = 3
 
+
 # def will_coll(atom1: Atom, atom2: Atom):
 #     # (x1+vx1t-x2-vx2t)^2+(y1+vy1t-y2-vy2t)^2-(r1+r2)^2=0
 #
@@ -27,7 +28,7 @@ def GoodAngle(me, m, s):
 
 
 def jiaodu(me: Atom, atom: Atom):
-    return GoodAngle(me, atom, 1.5)
+    # return GoodAngle(me, atom, 1.5)
     r_vx, r_vy = atom.vx - me.vx, atom.vy - me.vy
     return api.a2r(api.relative_angle(me.x, me.y, atom.x + r_vx, atom.y + r_vy) + 180)
 
@@ -89,6 +90,17 @@ def handle_shanbi(context: api.RawContext):
     print("******shanbi******")
 
 
+def have_bigger_atom(context, me: api.Atom, i: api.Atom):
+    p_l = (me.x + me.radius * math.cos(me.radian + math.pi / 2), me.x + me.radius * math.sin(me.radian + math.pi / 2))
+    p_r = (me.x + me.radius * math.cos(me.radian - math.pi / 2), me.x + me.radius * math.sin(me.radian - math.pi / 2))
+
+    enemies = [i for i in context.enemies if i.mass >= me.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU]
+    if len(api.raycast(enemies, p_l, me.radian_to_atom(i), me.distance_to(i))) + len(
+            api.raycast(enemies, p_r, me.radian_to_atom(i), me.distance_to(i))) > 0:
+        return True
+    return False
+
+
 def handle_target(context: api.RawContext):
     me = context.me
 
@@ -102,11 +114,15 @@ def handle_target(context: api.RawContext):
     print(f"stright forward atoms:{[print_atom(i) for i in atoms]}")
     if atoms:
         i = atoms[0]
-        print(f"stright forward atom:{i}")
+        for j in atoms:
+            if i.mass < j.mass < me.mass:
+                i = j
+        print(f"stright forward atom:{print_atom(i)}")
         t = cal_t((i.x - me.x), (i.y - me.y), me.vx, me.vy)
-        qw = atoms[0].mass + t / 1000
+        qw = atoms[0].mass + 100 / t
         max_qw = qw
         max_atom = i
+        print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
     # 再找没遮挡的目标
     enemies = [i for i in context.enemies if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU]
 
@@ -114,7 +130,9 @@ def handle_target(context: api.RawContext):
     for i in atoms:
         if api.distance(0, 0, i.vx, i.vy) > 100:
             continue
-        print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
+        if have_bigger_atom(context, me, i):
+            print(f"Have bigger atom in road, continue")
+            continue
         x, y = me.get_shoot_change_velocity(jiaodu(me, i))
         t = cal_t((i.x - me.x), (i.y - me.y), x, y)
         qw = i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU + t / 1000
@@ -123,6 +141,7 @@ def handle_target(context: api.RawContext):
             max_qw = qw
             max_atom = i
             shoot = True
+            print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
     if max_atom:
         print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
         if shoot:
