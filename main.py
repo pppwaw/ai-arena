@@ -21,6 +21,10 @@ TARGET_CISHU = 3
 kk = 0.5
 
 
+def qw_c(mass, t):
+    return mass + 1000 / (t / 10)
+
+
 def GoodAngle(me, m, s):
     mX = m.x + (m.vx - me.vx) * s
     mY = m.y + (m.vy - me.vy) * s
@@ -91,8 +95,8 @@ def handle_shanbi(context: api.RawContext):
         if e.whether_collide(me):
             print(f"shanbi {print_atom(e)} will collide")
             t = cal_t(e.x - me.x, e.y - me.y, me.vx - e.vx, me.vy - e.vy)
-            if t > 3:
-                print("More than 3s, ignore")
+            if t > 5:
+                print("More than 5s, ignore")
                 continue
             elif t == -1:
                 print("No collide")
@@ -145,7 +149,7 @@ def handle_target(context: api.RawContext):
                     i = j
             print(f"stright forward atom:{print_atom(i)}")
             t = cal_t(i.x - me.x, i.y - me.y, me.vx - i.vx, me.vy - i.vy)
-            qw = i.mass + 100 / (t / 10)
+            qw = qw_c(i.mass, t)
             max_qw = qw
             max_atom = i
             print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
@@ -163,7 +167,7 @@ def handle_target(context: api.RawContext):
         x, y = (x - me.vx) * TARGET_CISHU + me.vx, (y - me.vy) * TARGET_CISHU + me.vy
         print(f"shoot change velocity: {x}, {y}")
         t = cal_t(i.x - me.x, i.y - me.y, x - i.vx, y - i.vy)
-        qw = i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU + 100 / (t / 10)
+        qw = qw_c(i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU, t)
         if qw > max_qw:
             print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
