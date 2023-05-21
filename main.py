@@ -74,7 +74,7 @@ def hebing(angs):
 
 def cal_t(x, y, vx, vy):
     if x / vx < 0 or y / vy < 0:
-        return -1000000
+        return -1
     else:
         return (x / vx + y / vy) / 2
 
@@ -114,7 +114,7 @@ def handle_shanbi(context: api.RawContext):
 def have_bigger_atom(context, me: api.Atom, i: api.Atom):
     p_l = (me.x + me.radius * math.cos(me.radian + math.pi / 2), me.x + me.radius * math.sin(me.radian + math.pi / 2))
     p_r = (me.x + me.radius * math.cos(me.radian - math.pi / 2), me.x + me.radius * math.sin(me.radian - math.pi / 2))
-
+    print("have bigger atom: p_l={}, p_r={}".format(p_l, p_r))
     enemies = [i for i in context.enemies if i.mass >= me.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU]
     if len(api.raycast(enemies, p_l, me.radian_to_atom(i), me.distance_to(i))) + len(
             api.raycast(enemies, p_r, me.radian_to_atom(i), me.distance_to(i))) > 0:
@@ -141,7 +141,7 @@ def handle_target(context: api.RawContext):
                     i = j
             print(f"stright forward atom:{print_atom(i)}")
             t = cal_t((i.x - me.x), (i.y - me.y), me.vx, me.vy)
-            qw = atoms[0].mass + 100 / t
+            qw = atoms[0].mass + 100 / (t / 10)
             max_qw = qw
             max_atom = i
             print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
@@ -157,7 +157,7 @@ def handle_target(context: api.RawContext):
             continue
         x, y = me.get_shoot_change_velocity(jiaodu(me, i))
         t = cal_t((i.x - me.x), (i.y - me.y), i.vx - x, i.vy - y)
-        qw = i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU + t / 1000
+        qw = i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU + 100 / (t / 10)
         if qw > max_qw:
             print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
