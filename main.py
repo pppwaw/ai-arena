@@ -175,9 +175,9 @@ def handle_target(context: api.RawContext):
             shoot = True
             print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
     if max_atom:
-        print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
         if shoot:
             if not me.colliding:
+                print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
                 for i in range(TARGET_CISHU):
                     q.put(data(False, jiaodu(me, max_atom)))
             else:
