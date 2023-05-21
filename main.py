@@ -90,8 +90,12 @@ def handle_shanbi(context: api.RawContext):
     for e in enemies:
         if e.whether_collide(me):
             print(f"shanbi {print_atom(e)} will collide")
-            if cal_t(e.x - me.x, e.y - me.y, e.vx - me.vx, e.vy - me.vy) > 3:
+            t = cal_t(e.x - me.x, e.y - me.y, me.vx - e.vx, me.vy - e.vy)
+            if t > 3:
                 print("More than 3s, ignore")
+                continue
+            elif t == -1:
+                print("No collide")
                 continue
             # jd = jiaodu(me, e)
             cr = (e.vx - me.vx) * (e.y - me.y) - (e.vy - me.vy) * (e.x - me.x)
@@ -140,8 +144,8 @@ def handle_target(context: api.RawContext):
                 if i.mass < j.mass < me.mass:
                     i = j
             print(f"stright forward atom:{print_atom(i)}")
-            t = cal_t((i.x - me.x), (i.y - me.y), me.vx, me.vy)
-            qw = atoms[0].mass + 100 / (t / 10)
+            t = cal_t(i.x - me.x, i.y - me.y, me.vx - i.vx, me.vy - i.vy)
+            qw = i.mass + 100 / (t / 10)
             max_qw = qw
             max_atom = i
             print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
@@ -156,7 +160,9 @@ def handle_target(context: api.RawContext):
             print(f"Have bigger atom in road, continue")
             continue
         x, y = me.get_shoot_change_velocity(jiaodu(me, i))
-        t = cal_t((i.x - me.x), (i.y - me.y), i.vx - x, i.vy - y)
+        x, y = (x - me.vx) * TARGET_CISHU + me.vx, (y - me.vy) * TARGET_CISHU + me.vy
+        print(f"shoot change velocity: {x}, {y}")
+        t = cal_t(i.x - me.x, i.y - me.y, x - i.vx, y - i.vy)
         qw = i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU + 100 / (t / 10)
         if qw > max_qw:
             print(f"{print_atom(i)} qw:{qw} t:{t}")
