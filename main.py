@@ -22,7 +22,7 @@ kk = 0.5
 
 
 def qw_c(mass, t):
-    return mass + 1000 / (t / 10)
+    return mass + 100 / (t / 100)
 
 
 def GoodAngle(me, m, s):
