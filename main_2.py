@@ -53,8 +53,73 @@ def GoodAngle(me, m, s):
     return angleMe2Mo2
 
 
+def calculate_angles(x1, y1, theta2, M):
+    # convert theta2 from degrees to radians if it is in degrees
+    theta2 = math.radians(theta2) if theta2 > math.pi else theta2
+
+    # current velocity components of ball a
+    vx1 = x1
+    vy1 = y1
+
+    # target velocity direction of ball a
+    vx2_dir = math.cos(theta2)
+    vy2_dir = math.sin(theta2)
+
+    # Calculate the direction of velocity components
+    dx_dir = vx2_dir - vx1 / (math.sqrt(vx1 ** 2 + vy1 ** 2) + 1e-8)
+    dy_dir = vy2_dir - vy1 / (math.sqrt(vx1 ** 2 + vy1 ** 2) + 1e-8)
+
+    # calculate the first ejection angle
+    a1 = math.atan2(dy_dir, dx_dir)
+
+    # calculate the mass of the ejected ball
+    m = M / 50
+
+    # update the velocity and mass of ball a after the first ejection
+    vx1 += dx_dir * m / M
+    vy1 += dy_dir * m / M
+    M -= m
+
+    # initialize a2 and a3 to None
+    a2 = None
+    a3 = None
+
+    # check if the target direction has been reached, if not, perform the second ejection
+    if not math.isclose(vx1 / (math.sqrt(vx1 ** 2 + vy1 ** 2) + 1e-8), vx2_dir, abs_tol=1e-3) or not math.isclose(
+            vy1 / (math.sqrt(vx1 ** 2 + vy1 ** 2) + 1e-8), vy2_dir, abs_tol=1e-3):
+        # calculate the direction of velocity components for the second ejection
+        dx_dir = vx2_dir - vx1 / (math.sqrt(vx1 ** 2 + vy1 ** 2) + 1e-8)
+        dy_dir = vy2_dir - vy1 / (math.sqrt(vx1 ** 2 + vy1 ** 2) + 1e-8)
+
+        # calculate the second ejection angle
+        a2 = math.atan2(dy_dir, dx_dir)
+
+        # calculate the mass of the ejected ball
+        m = M / 50
+
+        # update the velocity and mass of ball a after the second ejection
+        vx1 += dx_dir * m / M
+        vy1 += dy_dir * m / M
+        M -= m
+
+        # check if the target direction has been reached, if not, perform the third ejection
+        if not math.isclose(vx1 / (math.sqrt(vx1 ** 2 + vy1 ** 2) + 1e-8), vx2_dir, abs_tol=1e-3) or not math.isclose(
+                vy1 / (math.sqrt(vx1 ** 2 + vy1 ** 2) + 1e-8), vy2_dir, abs_tol=1e-3):
+            # calculate the direction of velocity components for the third ejection
+            dx_dir = vx2_dir - vx1 / (math.sqrt(vx1 ** 2 + vy1 ** 2) + 1e-8)
+            dy_dir = vy2_dir - vy1 / (math.sqrt(vx1 ** 2 + vy1 ** 2) + 1e-8)
+
+            # calculate the third ejection angle
+            a3 = math.atan2(dy_dir, dx_dir)
+
+    return a1, a2, a3  # returning only the ejection angles
+
+
 def jiaodu(me: Atom, atom: Atom):
-    return api.a2r(api.r2a(GoodAngle(me, atom, 1)) + 180)
+    x1, y1, theta2, M = me.vx, me.vy, api.a2r(
+        api.relative_angle(0, 0, me.vx, me.vy) - api.relative_angle(me.x, me.y, atom.x, atom.y)), me.mass
+    print(f"jiaodu x1:{x1},y1:{y1},theta2:{theta2},M:{M}")
+    return [(api.a2r(api.r2a(i) + 180) if i else None) for i in calculate_angles(x1, y1, theta2, M) if i]
     r_vx, r_vy = atom.vx - me.vx, atom.vy - me.vy
     return api.a2r(api.relative_angle(me.x, me.y, atom.x + r_vx, atom.y + r_vy) + 180)
 
@@ -172,7 +237,13 @@ def handle_target(context: api.RawContext):
         if have_bigger_atom(context, me, i):
             print(f"Have bigger atom in road, continue")
             continue
-        x, y = me.get_shoot_change_velocity(jiaodu(me, i))
+        x, y = 0, 0
+        for j in jiaodu(me, i):
+            if not j:
+                continue
+            xx, yy = me.get_shoot_change_velocity(j)
+            x += xx
+            y += yy
         x, y = (x - me.vx) * TARGET_CISHU + me.vx, (y - me.vy) * TARGET_CISHU + me.vy
         print(f"shoot change velocity: {x}, {y}")
         t = cal_t(i.x - me.x, i.y - me.y, x - i.vx, y - i.vy)
@@ -186,9 +257,10 @@ def handle_target(context: api.RawContext):
     if max_atom:
         if shoot:
             if not me.colliding:
-                print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
-                for i in range(TARGET_CISHU):
-                    q.put(data(False, jiaodu(me, max_atom)))
+                print(f"final angle:{[api.r2a(i) for i in jiaodu(me, max_atom) if i]}")
+                for i in jiaodu(me, max_atom):
+                    if i:
+                        q.put(data(False, i))
             else:
                 print("colliding, don't shoot")
         else:
