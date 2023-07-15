@@ -11,8 +11,8 @@ q = Queue()
 spaces = 0
 Atom = namedtuple("Atom", ["x", "y", "vx", "vy", "r", "theta", "mass", "type", "id"])
 SHANBI_CISHU = 3
-TARGET_CISHU = 1
-
+TARGET_CISHU = 3
+MAX_SPEED = 100
 
 kk = 0.5
 
@@ -113,19 +113,19 @@ def handle_shanbi(context: api.RawContext):
         if e.whether_collide(me):
             print(f"shanbi {print_atom(e)} will collide")
             t = cal_t(me, e, 0, 0)
-            if t > 3:
-                print("More than 3s, ignore")
+            if t > 1.5:
+                print("More than 1.5s, ignore")
                 continue
             elif t == -1:
                 print("No collide")
                 continue
-            # jd = jiaodu(me, e)
+            jd = jiaodu(me, e)
             cr = (e.vx - me.vx) * (e.y - me.y) - (e.vy - me.vy) * (e.x - me.x)
             # print(f"shanbi cr={cr}, jd={api.r2a(jd)} angle={api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy)}")
             if cr >= 0:
-                ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) + 90)
+                ang = jd - api.a2r(90)
             else:
-                ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) - 90)
+                ang = jd + api.a2r(90)
             angs.append(ang)
     print(f"angs: {angs}")
     ang = hebing(angs)
@@ -141,14 +141,14 @@ def handle_shanbi(context: api.RawContext):
 def have_bigger_atom(context, me: api.Atom, i: api.Atom):
     radian = me.radian_to_atom(i)
     p_l = (
-        me.x + me.radius * cos(radian + math.pi / 2),
-        me.x + me.radius * sin(radian + math.pi / 2),
+        me.x - me.radius * cos(math.pi / 2 - radian),
+        me.x - me.radius * sin(math.pi / 2 - radian),
     )
     p_r = (
-        me.x + me.radius * cos(radian - math.pi / 2),
-        me.x + me.radius * sin(radian - math.pi / 2),
+        me.x + me.radius * cos(math.pi / 2 - radian),
+        me.x + me.radius * sin(math.pi / 2 - radian),
     )
-    print("have bigger atom: p_l={}, p_r={}".format(p_l, p_r))
+    print(f"have_bigger_atom radian={radian}, p_l={p_l}, p_r={p_r}")
     enemies = [
         i
         for i in context.enemies
@@ -170,7 +170,7 @@ def handle_target(context: api.RawContext):
 
     print("******target******")
     print(f"me: {print_atom(context.me)}")
-    # 先看不改变方向。如果速度超过40m/s则不动
+    # 先看不改变方向。如果速度超过 MAX_SPEED 则不动
     if me.vx != 0 or me.vy != 0:
         enemies = [i for i in context.enemies if i.mass < me.mass]
         atoms = me.get_forward_direction_atoms(enemies)
@@ -182,7 +182,7 @@ def handle_target(context: api.RawContext):
                 if i.mass < j.mass < me.mass:
                     i = j
             print(f"stright forward atom:{print_atom(i)}")
-            if api.distance(0, 0, me.vx, me.vy) >= 40:
+            if api.distance(0, 0, me.vx, me.vy) >= MAX_SPEED:
                 t = cal_t(me, i, 0, 0)
                 qw = qw_c(i.mass, t)
             else:
