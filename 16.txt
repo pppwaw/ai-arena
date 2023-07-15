@@ -1,0 +1,107 @@
+import api;
+import math;
+updown=0;
+
+kk=0.5
+
+def GoodAngle(me,m,s):    
+    mX=m.x+(m.vx-me.vx)*s
+    mY=m.y+(m.vy-me.vy)*s
+    Radian_me_m=api.relative_radian(me.x,me.y,m.x,m.y)
+    if Radian_me_m<0:
+        Radian_me_m=math.pi*2+Radian_me_m                 
+
+    Vx=me.vx-m.vx
+    Vy=me.vy-m.vy 
+    AV_me_m=api.relative_angle(0,0,Vx,Vy)
+
+    LV=math.sqrt(Vx*Vx +Vy* Vy)   
+    AV=math.atan2(Vy,Vx) 
+    if AV<0:
+        AV=math.pi*2+AV   
+
+    GoodV=LV*math.cos(AV-Radian_me_m)
+    BadV=abs(LV*math.sin(AV-Radian_me_m))
+    x1=me.x-m.x
+    y1=me.y-m.y
+    L=math.sqrt(x1*x1 +y1* y1)  
+
+
+    angleMe2Mo=api.relative_radian(me.x,me.y,mX,mY)
+    angleMe2Mo2=angleMe2Mo+math.atan2(BadV,(L*kk))
+    return angleMe2Mo2
+
+def Cost(me,m):
+    Radian_me_m=api.relative_radian(me.x,me.y,m.x,m.y)
+    if Radian_me_m<0:
+        Radian_me_m=math.pi*2+Radian_me_m                 
+
+    Vx=me.vx-m.vx
+    Vy=me.vy-m.vy 
+    AV_me_m=api.relative_angle(0,0,Vx,Vy)
+
+    LV=math.sqrt(Vx*Vx +Vy* Vy)   
+    AV=math.atan2(Vy,Vx) 
+    if AV<0:
+        AV=math.pi*2+AV   
+
+    GoodV=LV*math.cos(AV-Radian_me_m)
+    BadV=abs(LV*math.sin(AV-Radian_me_m))
+    cost=(BadV+me.distance_to(m)/4-GoodV)/10
+   
+    return cost        
+
+def update(context):
+  
+    global status; global stage;
+    me=context.me;
+  
+    ms = [m for m in context.monsters if not m.is_bullet]
+    if len(context.npc) > 0:
+        npc = context.npc[0]
+    else:
+        npc = None
+    me = context.me
+#detect my position
+
+    #down
+ 
+    if (context.step<=20):
+        return 3.14/10;
+    f=30
+
+
+    if context.step % f == 0 and context.step>410: 
+
+        ms = [m for m in context.monsters if not (m.is_bullet or m.radius<60 or m.radius>me.radius)]
+        if len(ms)>0:
+            ms.sort(key=lambda ms:Cost(me,ms))
+            for m in ms:                
+                print("len ms",len(ms),"m.id",m.id,"Cost",Cost(me,m))                  
+            return GoodAngle(me,ms[0],f/30)+3.14 
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

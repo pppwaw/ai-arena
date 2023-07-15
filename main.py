@@ -9,16 +9,11 @@ data = namedtuple("data", ["is_space", "data"])
 step = ""
 q = Queue()
 spaces = 0
-Atom = namedtuple("Atom", ["x", "y", "vx", "vy", "r", "mass", "type"])
+Atom = namedtuple("Atom", ["x", "y", "vx", "vy", "r", "theta", "mass", "type", "id"])
 SHANBI_CISHU = 3
-TARGET_CISHU = 3
+TARGET_CISHU = 1
 
-# def will_coll(atom1: Atom, atom2: Atom):
-#     # (x1+vx1t-x2-vx2t)^2+(y1+vy1t-y2-vy2t)^2-(r1+r2)^2=0
-#
-#     min_t = 0
-#     max_t = 100
-#     while ()
+
 kk = 0.5
 
 
@@ -42,8 +37,8 @@ def GoodAngle(me, m, s):
     if AV < 0:
         AV = math.pi * 2 + AV
 
-    GoodV = LV * cos(AV - Radian_me_m)
-    BadV = abs(LV * sin(AV - Radian_me_m))
+    GoodV = LV * math.cos(AV - Radian_me_m)
+    BadV = abs(LV * math.sin(AV - Radian_me_m))
     x1 = me.x - m.x
     y1 = me.y - m.y
     L = math.sqrt(x1 * x1 + y1 * y1)
@@ -54,15 +49,29 @@ def GoodAngle(me, m, s):
 
 
 def jiaodu(me: Atom, atom: Atom):
-    return api.a2r(api.r2a(GoodAngle(me, atom, 1)) + 180)
+    return GoodAngle(me, atom, 1) + 3.14
+    # return api.a2r(api.r2a(GoodAngle(me, atom, 1)) + 180)
     r_vx, r_vy = atom.vx - me.vx, atom.vy - me.vy
     return api.a2r(api.relative_angle(me.x, me.y, atom.x + r_vx, atom.y + r_vy) + 180)
 
 
+def get_shoot_change_velocity(radian) -> tuple[float, float]:  # x,y
+    return -cos(radian) * 10.2, -sin(radian) * 10.2
+
+
 def print_atom(atom: api.Atom):
     if atom:
-        return Atom(round(atom.x, 3), round(atom.y, 3), round(atom.vx, 3), round(atom.vy, 3), round(atom.radian, 3),
-                    round(atom.mass, 3), atom.type)
+        return Atom(
+            round(atom.x, 3),
+            round(atom.y, 3),
+            round(atom.vx, 3),
+            round(atom.vy, 3),
+            round(atom.radius, 3),
+            round(atom.radian, 3),
+            round(atom.mass, 3),
+            atom.type,
+            atom.id,
+        )
     else:
         return None
 
@@ -77,8 +86,15 @@ def hebing(angs):
     return api.relative_radian(0, 0, x, y)
 
 
-def cal_t(x, y, vx, vy):
-    if x / vx < 0 or y / vy < 0:
+def cal_t(me: api.Atom, atom: api.Atom, vx, vy):
+    x, y = (
+        atom.x - me.x - atom.radius + me.radius,
+        atom.y - me.y - atom.radius + me.radius,
+    )
+    vx = me.vx + vx - atom.vx
+    vy = me.vy + vy - atom.vy
+    print(f"cal_t x={x}, y={y}, vx={vx}, vy={vy}")
+    if x / vx < -0.3 or y / vy < -0.3:
         return -1
     else:
         return (x / vx + y / vy) / 2
@@ -86,7 +102,7 @@ def cal_t(x, y, vx, vy):
 
 def handle_shanbi(context: api.RawContext):
     me = context.me
-    enemies = [i for i in context.enemies.copy() if i.type != "bullet" and i.mass > me.mass]
+    enemies = [i for i in context.enemies.copy() if i.mass >= me.mass]
     enemies.sort(key=lambda x: me.distance_to(x))
     # print(f"shanbi me={print_atom(me)}")
     # print(f"shanbi enemies={[print_atom(i) for i in enemies]}")
@@ -96,9 +112,9 @@ def handle_shanbi(context: api.RawContext):
     for e in enemies:
         if e.whether_collide(me):
             print(f"shanbi {print_atom(e)} will collide")
-            t = cal_t(e.x - me.x, e.y - me.y, me.vx - e.vx, me.vy - e.vy)
-            if t > 5:
-                print("More than 5s, ignore")
+            t = cal_t(me, e, 0, 0)
+            if t > 3:
+                print("More than 3s, ignore")
                 continue
             elif t == -1:
                 print("No collide")
@@ -115,19 +131,34 @@ def handle_shanbi(context: api.RawContext):
     ang = hebing(angs)
     if angs:
         print(f"final ang: {ang}")
-        while not q.empty(): q.get()
+        while not q.empty():
+            q.get()
         for i in range(SHANBI_CISHU):
             q.put(data(False, ang))
     print("******shanbi******")
 
 
 def have_bigger_atom(context, me: api.Atom, i: api.Atom):
-    p_l = (me.x + me.radius * cos(me.radian + math.pi / 2), me.x + me.radius * sin(me.radian + math.pi / 2))
-    p_r = (me.x + me.radius * cos(me.radian - math.pi / 2), me.x + me.radius * sin(me.radian - math.pi / 2))
+    radian = me.radian_to_atom(i)
+    p_l = (
+        me.x + me.radius * cos(radian + math.pi / 2),
+        me.x + me.radius * sin(radian + math.pi / 2),
+    )
+    p_r = (
+        me.x + me.radius * cos(radian - math.pi / 2),
+        me.x + me.radius * sin(radian - math.pi / 2),
+    )
     print("have bigger atom: p_l={}, p_r={}".format(p_l, p_r))
-    enemies = [i for i in context.enemies if i.mass >= me.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU]
-    if len(api.raycast(enemies, p_l, me.radian_to_atom(i), me.distance_to(i))) + len(
-            api.raycast(enemies, p_r, me.radian_to_atom(i), me.distance_to(i))) > 0:
+    enemies = [
+        i
+        for i in context.enemies
+        if i.mass >= me.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU
+    ]
+    if (
+        len(api.raycast(enemies, p_l, me.radian_to_atom(i), me.distance_to(i)))
+        + len(api.raycast(enemies, p_r, me.radian_to_atom(i), me.distance_to(i)))
+        > 0
+    ):
         return True
     return False
 
@@ -139,7 +170,7 @@ def handle_target(context: api.RawContext):
 
     print("******target******")
     print(f"me: {print_atom(context.me)}")
-    # 先看不改变方向。如果速度超过10m/s则不动
+    # 先看不改变方向。如果速度超过40m/s则不动
     if me.vx != 0 or me.vy != 0:
         enemies = [i for i in context.enemies if i.mass < me.mass]
         atoms = me.get_forward_direction_atoms(enemies)
@@ -151,34 +182,42 @@ def handle_target(context: api.RawContext):
                 if i.mass < j.mass < me.mass:
                     i = j
             print(f"stright forward atom:{print_atom(i)}")
-            if math.sqrt(me.vx ** 2 + me.vy ** 2) >= 20:
-                t = cal_t(i.x - me.x, i.y - me.y, me.vx - i.vx, me.vy - i.vy)
+            if api.distance(0, 0, me.vx, me.vy) >= 40:
+                t = cal_t(me, i, 0, 0)
                 qw = qw_c(i.mass, t)
             else:
-                xx, yy = me.get_shoot_change_velocity(api.r2a(api.a2r(api.relative_angle(me.x, me.y, i.x, i.y)) + 180))
-                t = cal_t(i.x - me.x, i.y - me.y, me.vx - i.vx + xx, me.vy - i.vy + yy)
+                x, y = get_shoot_change_velocity(jiaodu(me, i))
+                x, y = x * TARGET_CISHU, y * TARGET_CISHU
+                print(f"shoot change velocity: x={x}, y={y}")
+                t = cal_t(me, i, x, y)
                 qw = qw_c(i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU, t)
                 shoot = True
-            max_qw = qw + 1000
+            max_qw = qw + 100
             max_atom = i
             print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
     # 再找没遮挡的目标
-    enemies = [i for i in context.enemies if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU]
-
+    enemies = [
+        i
+        for i in context.enemies
+        if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU
+    ]
     atoms = api.find_neighbors(me, enemies)
     for i in atoms:
         if api.distance(0, 0, i.vx, i.vy) > 100:
             continue
+        print()
+        print(f"atom: {print_atom(i)}")
         if have_bigger_atom(context, me, i):
             print(f"Have bigger atom in road, continue")
             continue
-        x, y = me.get_shoot_change_velocity(jiaodu(me, i))
-        x, y = (x - me.vx) * TARGET_CISHU + me.vx, (y - me.vy) * TARGET_CISHU + me.vy
-        print(f"shoot change velocity: {x}, {y}")
-        t = cal_t(i.x - me.x, i.y - me.y, x - i.vx, y - i.vy)
+        x, y = get_shoot_change_velocity(jiaodu(me, i))
+        x, y = x * TARGET_CISHU, y * TARGET_CISHU
+        print(f"shoot change velocity: {x + me.vx}, {y + me.vy}")
+        t = cal_t(me, i, x, y)
         qw = qw_c(i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU, t)
-        if qw > max_qw:
-            print(f"{print_atom(i)} qw:{qw} t:{t}")
+        print(f"qw:{qw} t:{t}")
+        if qw > max_qw + 10:
+            # print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
             max_atom = i
             shoot = True
