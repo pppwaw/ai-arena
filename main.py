@@ -123,9 +123,9 @@ def handle_shanbi(context: api.RawContext):
             cr = (e.vx - me.vx) * (e.y - me.y) - (e.vy - me.vy) * (e.x - me.x)
             # print(f"shanbi cr={cr}, jd={api.r2a(jd)} angle={api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy)}")
             if cr >= 0:
-                ang = jd - api.a2r(90)
-            else:
                 ang = jd + api.a2r(90)
+            else:
+                ang = jd - api.a2r(90)
             angs.append(ang)
     print(f"angs: {angs}")
     ang = hebing(angs)
@@ -188,7 +188,7 @@ def handle_target(context: api.RawContext):
             else:
                 x, y = get_shoot_change_velocity(jiaodu(me, i))
                 x, y = x * TARGET_CISHU, y * TARGET_CISHU
-                print(f"shoot change velocity: x={x}, y={y}")
+                print(f"shoot change velocity: x={x + me.vx}, y={y + me.vy}")
                 t = cal_t(me, i, x, y)
                 qw = qw_c(i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU, t)
                 shoot = True
