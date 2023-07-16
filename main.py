@@ -21,35 +21,53 @@ def qw_c(mass, t):
     return mass + 100 / (t / 100)
 
 
-def GoodAngle(me, m, s):
-    mX = m.x + (m.vx - me.vx) * s
-    mY = m.y + (m.vy - me.vy) * s
-    Radian_me_m = api.relative_radian(me.x, me.y, m.x, m.y)
-    if Radian_me_m < 0:
-        Radian_me_m = math.pi * 2 + Radian_me_m
+def Angle(me: api.Atom, atom: api.Atom) -> list[float]:
+    rtn = []
+    r1 = api.relative_radian(me.x, me.y, atom.x, atom.y)
+    r2 = me.radian_to_atom(atom)
+    me_v = api.distance(0, 0, me.vx, me.vy)
+    shu = me_v * sin(r2)
+    heng = me_v * cos(r2)
+    print(
+        f"r1={api.r2a(r1)}, r2={api.r2a(r2)}, shu={shu}, heng={heng}"
+    )
+    if abs(shu) >= 0.1:
+        # 先将竖直分量修正为0
+        r_shu = api.a2r(270) + r1
+        shu_time = int(shu // 10.2)
+        print(f"Angle shu_time={shu_time}")
+        if abs(shu) >= 10.2:  # 至少有一次
+            if shu_time >= TARGET_CISHU:  # 忽略超过 TARGET_CISHU 的部分
+                rtn = [r_shu] * TARGET_CISHU
 
-    Vx = me.vx - m.vx
-    Vy = me.vy - m.vy
-    AV_me_m = api.relative_angle(0, 0, Vx, Vy)
-
-    LV = math.sqrt(Vx * Vx + Vy * Vy)
-    AV = math.atan2(Vy, Vx)
-    if AV < 0:
-        AV = math.pi * 2 + AV
-
-    GoodV = LV * math.cos(AV - Radian_me_m)
-    BadV = abs(LV * math.sin(AV - Radian_me_m))
-    x1 = me.x - m.x
-    y1 = me.y - m.y
-    L = math.sqrt(x1 * x1 + y1 * y1)
-
-    angleMe2Mo = api.relative_radian(me.x, me.y, mX, mY)
-    angleMe2Mo2 = angleMe2Mo + math.atan2(BadV, (L * kk))
-    return angleMe2Mo2
+            elif shu_time < 0:
+                r_shu = api.a2r(90) + r1
+                abs_shu_time = abs(shu_time)
+                if abs_shu_time >= TARGET_CISHU:
+                    rtn = [r_shu] * TARGET_CISHU
+                else:
+                    rtn = [r_shu] * abs_shu_time
+            else:
+                rtn += [r_shu] * shu_time
+            shu -= shu_time * 10.2
+        if abs(shu) >= 0.1:
+            y = shu
+            x = math.sqrt(10.2**2 - y**2)
+            r_last_shu = api.a2r(api.r2a(api.relative_radian(0, 0, x, y) + r1) + 180)
+            rtn.append(r_last_shu)
+            print(f"Angle shu={shu}, last_shu={api.r2a(r_last_shu)}")
+        # 如果次数足够，则修复横向
+        if len(rtn) >= TARGET_CISHU:
+            return rtn
+    r_heng = api.a2r(api.r2a(r1) + 180)
+    rtn += [r_heng] * (TARGET_CISHU - len(rtn))
+    print(f"Angle rtn={[api.r2a(i) for i in rtn]}")
+    return rtn
 
 
 def jiaodu(me: Atom, atom: Atom):
-    return GoodAngle(me, atom, 1) + 3.14
+    return Angle(me, atom)
+    # return GoodAngle(me, atom, 1) + 3.14
     # return api.a2r(api.r2a(GoodAngle(me, atom, 1)) + 180)
     r_vx, r_vy = atom.vx - me.vx, atom.vy - me.vy
     return api.a2r(api.relative_angle(me.x, me.y, atom.x + r_vx, atom.y + r_vy) + 180)
@@ -119,13 +137,12 @@ def handle_shanbi(context: api.RawContext):
             elif t == -1:
                 print("No collide")
                 continue
-            jd = jiaodu(me, e)
             cr = (e.vx - me.vx) * (e.y - me.y) - (e.vy - me.vy) * (e.x - me.x)
             # print(f"shanbi cr={cr}, jd={api.r2a(jd)} angle={api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy)}")
             if cr >= 0:
-                ang = jd + api.a2r(90)
+                ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) + 90)
             else:
-                ang = jd - api.a2r(90)
+                ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) - 90)
             angs.append(ang)
     print(f"angs: {angs}")
     ang = hebing(angs)
@@ -186,8 +203,11 @@ def handle_target(context: api.RawContext):
                 t = cal_t(me, i, 0, 0)
                 qw = qw_c(i.mass, t)
             else:
-                x, y = get_shoot_change_velocity(jiaodu(me, i))
-                x, y = x * TARGET_CISHU, y * TARGET_CISHU
+                x, y = 0, 0
+                for j in jiaodu(me, i):
+                    xx, yy = get_shoot_change_velocity(j)
+                    x += xx
+                    y += yy
                 print(f"shoot change velocity: x={x + me.vx}, y={y + me.vy}")
                 t = cal_t(me, i, x, y)
                 qw = qw_c(i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU, t)
@@ -210,8 +230,11 @@ def handle_target(context: api.RawContext):
         if have_bigger_atom(context, me, i):
             print(f"Have bigger atom in road, continue")
             continue
-        x, y = get_shoot_change_velocity(jiaodu(me, i))
-        x, y = x * TARGET_CISHU, y * TARGET_CISHU
+        x, y = 0, 0
+        for j in jiaodu(me, i):
+            xx, yy = get_shoot_change_velocity(j)
+            x += xx
+            y += yy
         print(f"shoot change velocity: {x + me.vx}, {y + me.vy}")
         t = cal_t(me, i, x, y)
         qw = qw_c(i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU, t)
@@ -225,9 +248,10 @@ def handle_target(context: api.RawContext):
     if max_atom:
         if shoot:
             if not me.colliding:
-                print(f"final angle:{api.r2a(jiaodu(me, max_atom))}")
-                for i in range(TARGET_CISHU):
-                    q.put(data(False, jiaodu(me, max_atom)))
+                jd = jiaodu(me, max_atom)
+                print(f"final angle:{[api.r2a(i) for i in jd]}")
+                for i in jd:
+                    q.put(data(False, i))
             else:
                 print("colliding, don't shoot")
         else:
