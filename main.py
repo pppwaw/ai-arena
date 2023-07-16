@@ -25,8 +25,8 @@ def qw_c(mass, t):
 
 def Angle(me: api.Atom, atom: api.Atom) -> list[float]:
     rtn = []
-    r1 = api.relative_radian(me.x, me.y, atom.x, atom.y)
-    r2 = me.radian_to_atom(atom)
+    r1 = api.relative_radian(me.x, me.y, atom.x, atom.y) % (2 * math.pi)
+    r2 = me.radian_to_atom(atom) % (2 * math.pi)
     me_v = api.distance(0, 0, me.vx, me.vy)
     shu = me_v * sin(r2)
     heng = me_v * cos(r2)
@@ -54,7 +54,7 @@ def Angle(me: api.Atom, atom: api.Atom) -> list[float]:
         if abs(shu) >= 0.1:
             y = shu
             x = math.sqrt(10.2**2 - y**2)
-            r_last_shu = api.a2r(api.r2a(api.relative_radian(0, 0, x, y) + r1) + 90)
+            r_last_shu = api.a2r(r1 - api.r2a(api.relative_radian(0, 0, x, y)) + 180)
             rtn.append(r_last_shu)
             print(f"Angle shu={shu}, last_shu={api.r2a(r_last_shu)}")
         # 如果次数足够，则修复横向
@@ -86,10 +86,10 @@ def shanbiAngle(me: api.Atom, atom: api.Atom) -> list[float]:
         heng -= heng_time * 10.2
         if heng > 0:
             rtn += [r_heng]
-    # 如果次数足够，则修复竖直
+    # 如果次数足够，则一半修复竖直，一半原理
     if len(rtn) >= cishu:
         return rtn
-    rtn += [r_shu] * (cishu - len(rtn))
+    rtn += [r_shu] * (cishu - len(rtn)) / 2 + [r_heng] * (cishu - len(rtn)) / 2
     print(f"shanbiAngle rtn={[api.r2a(i) for i in rtn]}")
     return rtn
 
