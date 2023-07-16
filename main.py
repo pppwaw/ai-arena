@@ -133,17 +133,13 @@ def hebing(angs):
 
 
 def cal_t(me: api.Atom, atom: api.Atom, vx, vy):
-    x, y = (
-        atom.x - me.x + atom.radius - me.radius,
-        atom.y - me.y + atom.radius - me.radius,
-    )
+    l = me.get_atom_surface_dist(atom)
+    r = api.relative_radian(me.x, me.y, atom.x, atom.y)
+    x, y = l * cos(r), l * sin(r)
     vx = me.vx + vx - atom.vx
     vy = me.vy + vy - atom.vy
     print(f"cal_t x={x}, y={y}, vx={vx}, vy={vy}")
-    if x / vx < -0.3 or y / vy < -0.3:
-        return -1
-    else:
-        return (x / vx + y / vy) / 2
+    return (x / vx + y / vy) / 2
 
 
 def handle_shanbi(context: api.RawContext):
@@ -162,7 +158,7 @@ def handle_shanbi(context: api.RawContext):
             if t > SHANBI_TIME:
                 print(f"More than {SHANBI_TIME}s, ignore")
                 continue
-            elif t == -1:
+            elif t <= -1:
                 print("No collide")
                 continue
             cr = (e.vx - me.vx) * (e.y - me.y) - (e.vy - me.vy) * (e.x - me.x)
@@ -190,11 +186,11 @@ def have_bigger_atom(context, me: api.Atom, i: api.Atom):
     radian = api.relative_radian(me.x, me.y, i.x, i.y)
     p_l = (
         me.x - me.radius * cos(math.pi / 2 - radian),
-        me.x - me.radius * sin(math.pi / 2 - radian),
+        me.y - me.radius * sin(math.pi / 2 - radian),
     )
     p_r = (
         me.x + me.radius * cos(math.pi / 2 - radian),
-        me.x + me.radius * sin(math.pi / 2 - radian),
+        me.y + me.radius * sin(math.pi / 2 - radian),
     )
     print(f"have_bigger_atom radian={radian}, p_l={p_l}, p_r={p_r}")
     enemies = [
@@ -282,7 +278,7 @@ def handle_target(context: api.RawContext):
         if i.type == "npc" or i.type == "player":
             qw += 200
         print(f"qw:{qw} t:{t}")
-        if qw > max_qw + 10 and t != -1:
+        if qw > max_qw + 10 and t >= -0.5:
             # print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
             max_atom = i
