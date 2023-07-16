@@ -13,14 +13,14 @@ spaces = 0
 AtomTuple = namedtuple(
     "Atom", ["x", "y", "vx", "vy", "r", "theta", "mass", "type", "id"]
 )
-SHANBI_CISHU = 3
-TARGET_CISHU = 3
+SHANBI_CISHU = 5
+TARGET_CISHU = 5
 MAX_SPEED = 50
 SHANBI_TIME = 2
 
 
 def qw_c(mass, t):
-    return mass + 100 / (t / 100)
+    return mass - t * 100
 
 
 def Angle(me: api.Atom, atom: api.Atom) -> list[float]:
@@ -51,10 +51,10 @@ def Angle(me: api.Atom, atom: api.Atom) -> list[float]:
             else:
                 rtn += [r_shu] * shu_time
             shu -= shu_time * 10.2
-        if abs(shu) >= 0.1:
-            y = shu
+        if abs(shu) >= 2:
+            y = abs(shu)
             x = math.sqrt(10.2**2 - y**2)
-            r_last_shu = api.a2r(r1 - api.r2a(api.relative_radian(0, 0, x, y)) + 180)
+            r_last_shu = api.a2r(r1 + api.r2a(api.relative_radian(0, 0, x, y)) + 180)
             rtn.append(r_last_shu)
             print(f"Angle shu={shu}, last_shu={api.r2a(r_last_shu)}")
         # 如果次数足够，则修复横向
@@ -134,8 +134,8 @@ def hebing(angs):
 
 def cal_t(me: api.Atom, atom: api.Atom, vx, vy):
     x, y = (
-        atom.x - me.x - atom.radius + me.radius,
-        atom.y - me.y - atom.radius + me.radius,
+        atom.x - me.x + atom.radius - me.radius,
+        atom.y - me.y + atom.radius - me.radius,
     )
     vx = me.vx + vx - atom.vx
     vy = me.vy + vy - atom.vy
@@ -187,7 +187,7 @@ def handle_shanbi(context: api.RawContext):
 
 
 def have_bigger_atom(context, me: api.Atom, i: api.Atom):
-    radian = me.radian_to_atom(i)
+    radian = api.relative_radian(me.x, me.y, i.x, i.y)
     p_l = (
         me.x - me.radius * cos(math.pi / 2 - radian),
         me.x - me.radius * sin(math.pi / 2 - radian),
@@ -200,13 +200,14 @@ def have_bigger_atom(context, me: api.Atom, i: api.Atom):
     enemies = [
         i
         for i in context.enemies
-        if i.mass >= me.mass * (1 - api.SHOOT_AREA_RATIO) ** TARGET_CISHU
+        if i.mass >= (me.mass * (1 - api.SHOOT_AREA_RATIO) ** TARGET_CISHU)
     ]
     if (
-        len(api.raycast(enemies, p_l, me.radian_to_atom(i), me.distance_to(i)))
-        + len(api.raycast(enemies, p_r, me.radian_to_atom(i), me.distance_to(i)))
+        len(api.raycast(enemies, p_l, radian, me.distance_to(i)))
+        + len(api.raycast(enemies, p_r, radian, me.distance_to(i)))
         > 0
     ):
+        print(f"have_bigger_atom {print_atom(i)}, continue")
         return True
     return False
 
@@ -239,7 +240,7 @@ def handle_target(context: api.RawContext):
                     xx, yy = get_shoot_change_velocity(j)
                     x += xx
                     y += yy
-                print(f"shoot change velocity: x={x + me.vx}, y={y + me.vy}")
+                print(f"shoot change to velocity: x={x + me.vx}, y={y + me.vy}")
                 t = cal_t(me, i, x, y)
                 qw = qw_c(
                     i.mass
@@ -281,7 +282,7 @@ def handle_target(context: api.RawContext):
         if i.type == "npc" or i.type == "player":
             qw += 200
         print(f"qw:{qw} t:{t}")
-        if qw > max_qw + 10:
+        if qw > max_qw + 10 and t != -1:
             # print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
             max_atom = i
@@ -313,6 +314,8 @@ def handler(context: api.RawContext):
 
 
 def update(context: api.RawContext):
+    # if context.step == 1:
+    #     return api.a2r(75)
     if context.step % 30 == 0:
         print(f"{context.step // 30} second")
     handler(context)
