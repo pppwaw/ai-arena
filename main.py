@@ -4,17 +4,19 @@ from math import sin, cos
 from queue import Queue
 
 import api
+from api import Atom
 
 data = namedtuple("data", ["is_space", "data"])
 step = ""
 q = Queue()
 spaces = 0
-Atom = namedtuple("Atom", ["x", "y", "vx", "vy", "r", "theta", "mass", "type", "id"])
+AtomTuple = namedtuple(
+    "Atom", ["x", "y", "vx", "vy", "r", "theta", "mass", "type", "id"]
+)
 SHANBI_CISHU = 3
 TARGET_CISHU = 3
-MAX_SPEED = 100
-
-kk = 0.5
+MAX_SPEED = 50
+SHANBI_TIME = 2
 
 
 def qw_c(mass, t):
@@ -28,23 +30,22 @@ def Angle(me: api.Atom, atom: api.Atom) -> list[float]:
     me_v = api.distance(0, 0, me.vx, me.vy)
     shu = me_v * sin(r2)
     heng = me_v * cos(r2)
-    print(
-        f"r1={api.r2a(r1)}, r2={api.r2a(r2)}, shu={shu}, heng={heng}"
-    )
+    r_shu = api.a2r(270) + r1
+    r_heng = api.a2r(api.r2a(r1) + 180)
+    cishu = TARGET_CISHU
+    print(f"r1={api.r2a(r1)}, r2={api.r2a(r2)}, shu={shu}, heng={heng}")
     if abs(shu) >= 0.1:
         # 先将竖直分量修正为0
-        r_shu = api.a2r(270) + r1
         shu_time = int(shu // 10.2)
         print(f"Angle shu_time={shu_time}")
         if abs(shu) >= 10.2:  # 至少有一次
-            if shu_time >= TARGET_CISHU:  # 忽略超过 TARGET_CISHU 的部分
-                rtn = [r_shu] * TARGET_CISHU
-
+            if shu_time >= cishu:  # 忽略超过 TARGET_CISHU 的部分
+                rtn = [r_shu] * cishu
             elif shu_time < 0:
                 r_shu = api.a2r(90) + r1
                 abs_shu_time = abs(shu_time)
-                if abs_shu_time >= TARGET_CISHU:
-                    rtn = [r_shu] * TARGET_CISHU
+                if abs_shu_time >= cishu:
+                    rtn = [r_shu] * cishu
                 else:
                     rtn = [r_shu] * abs_shu_time
             else:
@@ -53,24 +54,51 @@ def Angle(me: api.Atom, atom: api.Atom) -> list[float]:
         if abs(shu) >= 0.1:
             y = shu
             x = math.sqrt(10.2**2 - y**2)
-            r_last_shu = api.a2r(api.r2a(api.relative_radian(0, 0, x, y) + r1) + 180)
+            r_last_shu = api.a2r(api.r2a(api.relative_radian(0, 0, x, y) + r1) + 90)
             rtn.append(r_last_shu)
             print(f"Angle shu={shu}, last_shu={api.r2a(r_last_shu)}")
         # 如果次数足够，则修复横向
-        if len(rtn) >= TARGET_CISHU:
+        if len(rtn) >= cishu:
             return rtn
-    r_heng = api.a2r(api.r2a(r1) + 180)
-    rtn += [r_heng] * (TARGET_CISHU - len(rtn))
+    rtn += [r_heng] * (cishu - len(rtn))
     print(f"Angle rtn={[api.r2a(i) for i in rtn]}")
     return rtn
 
 
-def jiaodu(me: Atom, atom: Atom):
-    return Angle(me, atom)
-    # return GoodAngle(me, atom, 1) + 3.14
-    # return api.a2r(api.r2a(GoodAngle(me, atom, 1)) + 180)
-    r_vx, r_vy = atom.vx - me.vx, atom.vy - me.vy
-    return api.a2r(api.relative_angle(me.x, me.y, atom.x + r_vx, atom.y + r_vy) + 180)
+def shanbiAngle(me: api.Atom, atom: api.Atom) -> list[float]:
+    rtn = []
+    r1 = api.relative_radian(me.x, me.y, atom.x, atom.y)
+    r2 = me.radian_to_atom(atom)
+    me_v = api.distance(0, 0, me.vx, me.vy)
+    shu = me_v * sin(r2)
+    heng = me_v * cos(r2)
+    r_shu = api.a2r(90) + r1
+    r_heng = api.r2a(r1)
+    cishu = SHANBI_CISHU
+    print(f"shanbiAngle r1={api.r2a(r1)}, r2={api.r2a(r2)}, shu={shu}, heng={heng}")
+    # 确保heng = 0，由于此时必定在向小球靠近，所以heng必然为正，heng也是
+    heng_time = int(heng // 10.2)
+    if heng >= 10.2:
+        if heng_time >= cishu:
+            rtn = [r_heng] * cishu
+        else:
+            rtn = [r_heng] * heng_time
+        heng -= heng_time * 10.2
+        if heng > 0:
+            rtn += [r_heng]
+    # 如果次数足够，则修复竖直
+    if len(rtn) >= cishu:
+        return rtn
+    rtn += [r_shu] * (cishu - len(rtn))
+    print(f"shanbiAngle rtn={[api.r2a(i) for i in rtn]}")
+    return rtn
+
+
+def jiaodu(me: Atom, atom: Atom, shanbi=False):
+    if shanbi:
+        return shanbiAngle(me, atom)
+    else:
+        return Angle(me, atom)
 
 
 def get_shoot_change_velocity(radian) -> tuple[float, float]:  # x,y
@@ -79,7 +107,7 @@ def get_shoot_change_velocity(radian) -> tuple[float, float]:  # x,y
 
 def print_atom(atom: api.Atom):
     if atom:
-        return Atom(
+        return AtomTuple(
             round(atom.x, 3),
             round(atom.y, 3),
             round(atom.vx, 3),
@@ -131,23 +159,26 @@ def handle_shanbi(context: api.RawContext):
         if e.whether_collide(me):
             print(f"shanbi {print_atom(e)} will collide")
             t = cal_t(me, e, 0, 0)
-            if t > 1.5:
-                print("More than 1.5s, ignore")
+            if t > SHANBI_TIME:
+                print(f"More than {SHANBI_TIME}s, ignore")
                 continue
             elif t == -1:
                 print("No collide")
                 continue
             cr = (e.vx - me.vx) * (e.y - me.y) - (e.vy - me.vy) * (e.x - me.x)
-            # print(f"shanbi cr={cr}, jd={api.r2a(jd)} angle={api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy)}")
+            # print(
+            #     f"shanbi cr={cr}, jd={api.r2a(jd)} angle={api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy)}"
+            # )
             if cr >= 0:
                 ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) + 90)
             else:
                 ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) - 90)
+            # angs.extend(jiaodu(me, e, True))
             angs.append(ang)
     print(f"angs: {angs}")
     ang = hebing(angs)
     if angs:
-        print(f"final ang: {ang}")
+        print(f"final angle: {api.r2a(ang)}")
         while not q.empty():
             q.get()
         for i in range(SHANBI_CISHU):
@@ -169,7 +200,7 @@ def have_bigger_atom(context, me: api.Atom, i: api.Atom):
     enemies = [
         i
         for i in context.enemies
-        if i.mass >= me.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU
+        if i.mass >= me.mass * (1 - api.SHOOT_AREA_RATIO) ** TARGET_CISHU
     ]
     if (
         len(api.raycast(enemies, p_l, me.radian_to_atom(i), me.distance_to(i)))
@@ -210,7 +241,14 @@ def handle_target(context: api.RawContext):
                     y += yy
                 print(f"shoot change velocity: x={x + me.vx}, y={y + me.vy}")
                 t = cal_t(me, i, x, y)
-                qw = qw_c(i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU, t)
+                qw = qw_c(
+                    i.mass
+                    - me.mass * (1 - api.SHOOT_AREA_RATIO) ** TARGET_CISHU
+                    + me.mass,
+                    t,
+                )
+                if i.type == "npc" or i.type == "player":
+                    qw += 200
                 shoot = True
             max_qw = qw + 100
             max_atom = i
@@ -219,7 +257,7 @@ def handle_target(context: api.RawContext):
     enemies = [
         i
         for i in context.enemies
-        if i.mass < me.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU
+        if i.mass < me.mass * (1 - api.SHOOT_AREA_RATIO) ** TARGET_CISHU
     ]
     atoms = api.find_neighbors(me, enemies)
     for i in atoms:
@@ -237,7 +275,11 @@ def handle_target(context: api.RawContext):
             y += yy
         print(f"shoot change velocity: {x + me.vx}, {y + me.vy}")
         t = cal_t(me, i, x, y)
-        qw = qw_c(i.mass - me.mass * api.SHOOT_AREA_RATIO * TARGET_CISHU, t)
+        qw = qw_c(
+            i.mass - me.mass * (1 - api.SHOOT_AREA_RATIO) ** TARGET_CISHU + me.mass, t
+        )
+        if i.type == "npc" or i.type == "player":
+            qw += 200
         print(f"qw:{qw} t:{t}")
         if qw > max_qw + 10:
             # print(f"{print_atom(i)} qw:{qw} t:{t}")
