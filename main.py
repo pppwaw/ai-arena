@@ -32,7 +32,9 @@ def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
     heng = me_v * cos(r2)
     r_shu = api.a2r(270) + r1
     r_heng = api.a2r(api.r2a(r1) + 180)
-    print(f"r1={api.r2a(r1)}, r2={api.r2a(r2)}, shu={shu}, heng={heng}")
+    print(
+        f"r1={round(api.r2a(r1),3)}, r2={round(api.r2a(r2),3)}, shu={round(shu,3)}, heng={round(heng,3)}"
+    )
     if abs(shu) >= 0.1:
         # 先将竖直分量修正为0
         shu_time = int(shu // 10.2)
@@ -90,7 +92,7 @@ def shanbiAngle(me: api.Atom, atom: api.Atom) -> list[float]:
     if len(rtn) >= cishu:
         return rtn
     rtn += [r_shu] * (cishu - len(rtn)) / 2 + [r_heng] * (cishu - len(rtn)) / 2
-    print(f"shanbiAngle rtn={[api.r2a(i) for i in rtn]}")
+    print(f"shanbiAngle rtn={[round(api.r2a(i),3) for i in rtn]}")
     return rtn
 
 
@@ -170,7 +172,7 @@ def handle_shanbi(context: api.RawContext):
     print(f"angs: {angs}")
     ang = hebing(angs)
     if angs:
-        print(f"final angle: {api.r2a(ang)}")
+        print(f"final angle: {round(api.r2a(ang,3))}")
         while not q.empty():
             q.get()
         for i in range(SHANBI_CISHU):
@@ -178,7 +180,7 @@ def handle_shanbi(context: api.RawContext):
     print("******shanbi******")
 
 
-def have_bigger_atom(context, me: api.Atom, i: api.Atom):
+def have_bigger_atom(context, me: api.Atom, i: api.Atom, cishu):
     radian = api.relative_radian(me.x, me.y, i.x, i.y)
     p_l = (
         me.x - me.radius * cos(math.pi / 2 - radian),
@@ -192,7 +194,7 @@ def have_bigger_atom(context, me: api.Atom, i: api.Atom):
     enemies = [
         i
         for i in context.enemies
-        if i.mass >= (me.mass * (1 - api.SHOOT_AREA_RATIO) ** TARGET_CISHU)
+        if i.mass >= (me.mass * (1 - api.SHOOT_AREA_RATIO) ** cishu)
     ]
     if (
         len(api.raycast(enemies, p_l, radian, me.distance_to(i)))
@@ -257,19 +259,20 @@ def handle_target(context: api.RawContext):
             max_atom = i
             print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
     # 再找没遮挡的目标
-    enemies = [i for i in context.enemies if i.mass < me.mass]
+    enemies = [
+        i for i in context.enemies if i.mass < me.mass * (1 - api.SHOOT_AREA_RATIO)
+    ]
     atoms = api.find_neighbors(me, enemies)
     for i in atoms:
         if api.distance(0, 0, i.vx, i.vy) > 1000:
             continue
-
-        if have_bigger_atom(context, me, i):
-            continue
-        print()
-        print(f"atom: {print_atom(i)}")
         cishu = int(math.log(i.mass / me.mass, 1 - api.SHOOT_AREA_RATIO))
         if cishu > TARGET_CISHU:
             cishu = TARGET_CISHU
+        if have_bigger_atom(context, me, i, cishu):
+            continue
+        print()
+        print(f"atom: {print_atom(i)}")
         x, y = 0, 0
         for j in Angle(me, i, cishu):
             xx, yy = get_shoot_change_velocity(j)
@@ -280,19 +283,22 @@ def handle_target(context: api.RawContext):
         qw = qw_c(i.mass - me.mass * (1 - api.SHOOT_AREA_RATIO) ** cishu + me.mass, t)
         if i.type == "npc" or i.type == "player":
             qw += 200
-        print(f"qw:{qw} t:{t}")
+        print(f"qw:{qw} t:{t} cishu:{cishu}")
         if qw > max_qw + 10 and t >= -0.5:
             # print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
             max_atom = i
             max_cishu = cishu
             shoot = True
-            print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
+            print(
+                f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}, max_cishu: {max_cishu}"
+            )
     if max_atom:
         if shoot:
             if not me.colliding:
+                print(f"final atom: {print_atom(max_atom)}")
                 jd = Angle(me, max_atom, max_cishu)
-                print(f"final angle:{[api.r2a(i) for i in jd]}")
+                print(f"final angle:{[round(api.r2a(i),3) for i in jd]}")
                 for i in jd:
                     q.put(data(False, i))
             else:
