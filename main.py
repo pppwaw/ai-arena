@@ -16,7 +16,7 @@ AtomTuple = namedtuple(
 SHANBI_CISHU = 5
 TARGET_CISHU = 5
 MAX_SPEED = 50
-SHANBI_TIME = 2
+SHANBI_TIME = 1.5
 
 
 def qw_c(mass, t):
@@ -131,13 +131,16 @@ def cal_t(me: api.Atom, atom: api.Atom, vx, vy):
     x, y = l * cos(r), l * sin(r)
     vx = me.vx + vx - atom.vx
     vy = me.vy + vy - atom.vy
-    print(f"cal_t x={x}, y={y}, vx={vx}, vy={vy}")
-    return (x / vx + y / vy) / 2
+    print(f"cal_t x={x}, y={y}, vx={vx}, vy={vy}, t={(x / vx + y / vy) / 2}")
+    if x / vx >= -0.2 and y / vy >= -0.2:
+        return (x / vx + y / vy) / 2
+    else:
+        return -1
 
 
 def handle_shanbi(context: api.RawContext):
     me = context.me
-    enemies = [i for i in context.enemies.copy() if i.mass >= me.mass]
+    enemies = [i for i in context.enemies.copy() if i.mass > me.mass]
     enemies.sort(key=lambda x: me.distance_to(x))
     # print(f"shanbi me={print_atom(me)}")
     # print(f"shanbi enemies={[print_atom(i) for i in enemies]}")
@@ -185,7 +188,7 @@ def have_bigger_atom(context, me: api.Atom, i: api.Atom):
         me.x + me.radius * cos(math.pi / 2 - radian),
         me.y + me.radius * sin(math.pi / 2 - radian),
     )
-    print(f"have_bigger_atom radian={radian}, p_l={p_l}, p_r={p_r}")
+    # print(f"have_bigger_atom radian={radian}, p_l={p_l}, p_r={p_r}")
     enemies = [
         i
         for i in context.enemies
@@ -196,7 +199,7 @@ def have_bigger_atom(context, me: api.Atom, i: api.Atom):
         + len(api.raycast(enemies, p_r, radian, me.distance_to(i)))
         > 0
     ):
-        print(f"have_bigger_atom {print_atom(i)}, continue")
+        # print(f"have_bigger_atom {print_atom(i)}, continue")
         return True
     return False
 
@@ -259,11 +262,11 @@ def handle_target(context: api.RawContext):
     for i in atoms:
         if api.distance(0, 0, i.vx, i.vy) > 1000:
             continue
+
+        if have_bigger_atom(context, me, i):
+            continue
         print()
         print(f"atom: {print_atom(i)}")
-        if have_bigger_atom(context, me, i):
-            print(f"Have bigger atom in road, continue")
-            continue
         cishu = int(math.log(i.mass / me.mass, 1 - api.SHOOT_AREA_RATIO))
         if cishu > TARGET_CISHU:
             cishu = TARGET_CISHU
