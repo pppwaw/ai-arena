@@ -15,12 +15,12 @@ AtomTuple = namedtuple(
 )
 SHANBI_CISHU = 5
 TARGET_CISHU = 5
-MAX_SPEED = 50
-SHANBI_TIME = 1.5
+MAX_SPEED = 30
+SHANBI_TIME = 0.5
 
 
 def qw_c(mass, t):
-    return mass - t * 100
+    return mass - t * 300
 
 
 def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
@@ -37,7 +37,9 @@ def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
     )
     if abs(shu) >= 0.1:
         # 先将竖直分量修正为0
-        shu_time = int(shu // 10.2)
+        shu_time = int(abs(shu) // 10.2)
+        if shu < 0:
+            shu_time = -shu_time
         print(f"Angle shu_time={shu_time}")
         if abs(shu) >= 10.2:  # 至少有一次
             if shu_time >= cishu:  # 忽略超过 TARGET_CISHU 的部分
@@ -172,7 +174,7 @@ def handle_shanbi(context: api.RawContext):
     print(f"angs: {angs}")
     ang = hebing(angs)
     if angs:
-        print(f"final angle: {round(api.r2a(ang,3))}")
+        print(f"final angle: {round(api.r2a(ang),3)}")
         while not q.empty():
             q.get()
         for i in range(SHANBI_CISHU):
@@ -252,7 +254,7 @@ def handle_target(context: api.RawContext):
                     t,
                 )
                 if i.type == "npc" or i.type == "player":
-                    qw += 200
+                    qw -= 500
                 max_cishu = cishu
                 shoot = True
             max_qw = qw + 100
@@ -262,8 +264,7 @@ def handle_target(context: api.RawContext):
     enemies = [
         i for i in context.enemies if i.mass < me.mass * (1 - api.SHOOT_AREA_RATIO)
     ]
-    atoms = api.find_neighbors(me, enemies)
-    for i in atoms:
+    for i in enemies:
         if api.distance(0, 0, i.vx, i.vy) > 1000:
             continue
         cishu = int(math.log(i.mass / me.mass, 1 - api.SHOOT_AREA_RATIO))
@@ -282,7 +283,7 @@ def handle_target(context: api.RawContext):
         t = cal_t(me, i, x, y)
         qw = qw_c(i.mass - me.mass * (1 - api.SHOOT_AREA_RATIO) ** cishu + me.mass, t)
         if i.type == "npc" or i.type == "player":
-            qw += 200
+            qw -= 500
         print(f"qw:{qw} t:{t} cishu:{cishu}")
         if qw > max_qw + 10 and t >= -0.5:
             # print(f"{print_atom(i)} qw:{qw} t:{t}")
