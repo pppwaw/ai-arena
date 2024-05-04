@@ -14,9 +14,9 @@ AtomTuple = namedtuple(
     "Atom", ["x", "y", "vx", "vy", "r", "theta", "mass", "type", "id"]
 )
 SHANBI_CISHU = 5
-TARGET_CISHU = 3
+TARGET_CISHU = 5
 MAX_SPEED = 30
-SHANBI_TIME = 0.5
+SHANBI_TIME = 2
 
 
 def qw_c(mass, t):
@@ -217,7 +217,7 @@ def handle_target(context: api.RawContext):
     print(f"me: {print_atom(context.me)}")
     # 先看不改变方向。如果速度超过 MAX_SPEED 则不动
     if me.vx != 0 or me.vy != 0:
-        enemies = [i for i in context.enemies if i.mass < me.mass]
+        enemies = [i for i in context.enemies if i.mass < me.mass and (i.vx**2 + i.vy**2) < 10000]
         atoms = me.get_forward_direction_atoms(enemies)
         atoms.sort(key=lambda x: me.distance_to(x))
         print(f"stright forward atoms:{[print_atom(i) for i in atoms]}")
@@ -262,7 +262,7 @@ def handle_target(context: api.RawContext):
             print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
     # 再找没遮挡的目标
     enemies = [
-        i for i in context.enemies if i.mass < me.mass * (1 - api.SHOOT_AREA_RATIO)
+        i for i in context.enemies if i.mass < me.mass * (1 - api.SHOOT_AREA_RATIO) and i.mass >= me.mass * api.SHOOT_AREA_RATIO and (i.vx**2 + i.vy**2) < 90000
     ]
     for i in enemies:
         if api.distance(0, 0, i.vx, i.vy) > 1000:
