@@ -14,13 +14,13 @@ AtomTuple = namedtuple(
     "Atom", ["x", "y", "vx", "vy", "r", "theta", "mass", "type", "id"]
 )
 SHANBI_CISHU = 5
-TARGET_CISHU = 5
+TARGET_CISHU = 3
 MAX_SPEED = 30
 SHANBI_TIME = 0.5
 
 
 def qw_c(mass, t):
-    return mass - t * 300
+    return mass / (t*100)
 
 
 def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
@@ -285,7 +285,7 @@ def handle_target(context: api.RawContext):
         if i.type == "npc" or i.type == "player":
             qw -= 500
         print(f"qw:{qw} t:{t} cishu:{cishu}")
-        if qw > max_qw + 10 and t >= -0.5:
+        if qw > max_qw *1.05 and t >= -0.5:
             # print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
             max_atom = i
