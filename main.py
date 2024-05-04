@@ -1,6 +1,6 @@
 import math
 from collections import namedtuple
-from math import sin, cos
+from math import sin, cos, sqrt
 from queue import Queue
 
 import api
@@ -22,79 +22,79 @@ SHANBI_TIME = 2
 def qw_c(mass, t):
     return mass / (t*100)
 
-
 def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
     rtn = []
-    r1 = api.relative_radian(me.x, me.y, atom.x, atom.y) % (2 * math.pi)
-    r2 = me.radian_to_atom(atom) % (2 * math.pi)
-    me_v = api.distance(0, 0, me.vx, me.vy)
-    shu = me_v * sin(r2)
-    heng = me_v * cos(r2)
-    r_shu = api.a2r(270) + r1
-    r_heng = api.a2r(api.r2a(r1) + 180)
-    print(
-        f"r1={round(api.r2a(r1),3)}, r2={round(api.r2a(r2),3)}, shu={round(shu,3)}, heng={round(heng,3)}"
-    )
-    if abs(shu) >= 0.1:
-        # 先将竖直分量修正为0
-        shu_time = int(abs(shu) // 10.2)
-        if shu < 0:
-            shu_time = -shu_time
-        print(f"Angle shu_time={shu_time}")
-        if abs(shu) >= 10.2:  # 至少有一次
-            if shu_time >= cishu:  # 忽略超过 TARGET_CISHU 的部分
-                rtn = [r_shu] * cishu
-            elif shu_time < 0:
-                r_shu = api.a2r(90) + r1
-                abs_shu_time = abs(shu_time)
-                if abs_shu_time >= cishu:
-                    rtn = [r_shu] * cishu
-                else:
-                    rtn = [r_shu] * abs_shu_time
+    d = api.distance(me.x, me.y, atom.x, atom.y)
+    u_xiangdui = ((atom.x - me.x) / d, (atom.y - me.y) / d) # 连线方向上的单位向量
+    v_xiangdui = (me.vx - atom.vx, me.vy - atom.vy) # 相对速度
+    # 沿连线方向上的速度
+    v_lianxian = v_xiangdui[0] * u_xiangdui[0] + v_xiangdui[1] * u_xiangdui[1]
+    # 垂直连线方向上的速度
+    u_chuizhi = (-u_xiangdui[1], u_xiangdui[0])
+    v_chuizhi =  v_xiangdui[0] * u_chuizhi[0] + v_xiangdui[1] * u_chuizhi[1]
+    # 垂直连线方向的速度
+    print(f"angle_xiangdui = {round(api.relative_angle(0, 0, *u_xiangdui),3)}, angle_v_xiangdui = {round(api.relative_angle(0, 0,* v_xiangdui),3)}")
+    print(f"v_lianxian = {v_lianxian}, v_chuizhi = {v_chuizhi}")
+    ang_pen_chui =  api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi) +180)
+    ang_pen_lian = api.angle_to_radian(api.relative_angle(0, 0, *u_xiangdui) + 180)
+    if abs(v_chuizhi > 0.1):
+        
+        if abs(v_chuizhi) < 10.2:
+            v_shuiping = sqrt(10.2**2 - v_chuizhi**2)
+            pen_x, pen_y = v_chuizhi * cos(ang_pen_chui) + v_shuiping * cos(ang_pen_lian), v_chuizhi * sin(ang_pen_chui) + v_shuiping * sin(ang_pen_lian)
+            rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
+        else:
+            cishu_chuizhi = int(abs(v_chuizhi) // 10.2)
+            if cishu_chuizhi >= cishu:
+                rtn = [ang_pen_chui] * cishu
             else:
-                rtn += [r_shu] * shu_time
-            shu -= shu_time * 10.2
-        if abs(shu) >= 2:
-            y = abs(shu)
-            x = math.sqrt(10.2**2 - y**2)
-            r_last_shu = api.a2r(r1 + api.r2a(api.relative_radian(0, 0, x, y)) + 180)
-            rtn.append(r_last_shu)
-            print(f"Angle shu={shu}, last_shu={api.r2a(r_last_shu)}")
-
-        if len(rtn) >= cishu:
-            return rtn
-    # 如果次数足够，则修复横向
-    rtn += [r_heng] * (cishu - len(rtn))
-    print(f"Angle rtn={[api.r2a(i) for i in rtn]}")
+                rtn = [ang_pen_chui] * cishu_chuizhi
+            v_chuizhi -= cishu_chuizhi * 10.2
+            if abs(v_chuizhi) > 0.1:
+                v_shuiping = sqrt(10.2**2 - v_chuizhi**2)
+                pen_x, pen_y = v_chuizhi * cos(ang_pen_chui) + v_shuiping * cos(ang_pen_lian), v_chuizhi * sin(ang_pen_chui) + v_shuiping * sin(ang_pen_lian)
+                rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
+    if len(rtn) >= cishu:
+        print(f"angle rtn={[round(api.r2a(i),3) for i in rtn]}")
+        return rtn
+    rtn += [ang_pen_lian] * (cishu - len(rtn))
+    print(f"angle rtn={[round(api.r2a(i),3) for i in rtn]}")
     return rtn
 
 
 def shanbiAngle(me: api.Atom, atom: api.Atom) -> list[float]:
     rtn = []
-    r1 = api.relative_radian(me.x, me.y, atom.x, atom.y)
-    r2 = me.radian_to_atom(atom)
-    me_v = api.distance(0, 0, me.vx, me.vy)
-    shu = me_v * sin(r2)
-    heng = me_v * cos(r2)
-    r_shu = api.a2r(90) + r1
-    r_heng = api.r2a(r1)
-    cishu = SHANBI_CISHU
-    print(f"shanbiAngle r1={api.r2a(r1)}, r2={api.r2a(r2)}, shu={shu}, heng={heng}")
-    # 确保heng = 0，由于此时必定在向小球靠近，所以heng必然为正，heng也是
-    heng_time = int(heng // 10.2)
-    if heng >= 10.2:
-        if heng_time >= cishu:
-            rtn = [r_heng] * cishu
+    d = api.distance(me.x, me.y, atom.x, atom.y)
+    u_xiangdui = ((atom.x - me.x) / d, (atom.y - me.y) / d) # 连线方向上的单位向量
+    v_xiangdui = (me.vx - atom.vx, me.vy - atom.vy) # 相对速度
+    # 沿连线方向上的速度
+    v_lianxian = v_xiangdui[0] * u_xiangdui[0] + v_xiangdui[1] * u_xiangdui[1]
+    # 垂直连线方向上的速度
+    u_chuizhi = (-u_xiangdui[1], u_xiangdui[0])
+    v_chuizhi =  v_xiangdui[0] * u_chuizhi[0] + v_xiangdui[1] * u_chuizhi[1]
+    # 垂直连线方向的速度
+    print(f"angle_xiangdui = {api.relative_angle(0, 0, *u_xiangdui)}, angle_v_xiangdui = {api.relative_angle(0, 0,* v_xiangdui)}")
+    print(f"v_lianxian={v_lianxian}, v_chuizhi={v_chuizhi}")
+    ang_pen_chui =  api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi) +180)
+    ang_pen_lian = api.angle_to_radian(api.relative_angle(0, 0, *u_xiangdui) + 180)
+    if abs(v_lianxian > 0.1):
+        if abs(v_lianxian) < 10.2:
+            v_shuiping = sqrt(10.2**2 - v_lianxian**2)
+            pen_x, pen_y = v_lianxian * cos(ang_pen_lian) + v_shuiping * cos(ang_pen_chui), v_lianxian * sin(ang_pen_lian) + v_shuiping * sin(ang_pen_chui)
+            rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
         else:
-            rtn = [r_heng] * heng_time
-        heng -= heng_time * 10.2
-        if heng > 0:
-            rtn += [r_heng]
-    # 如果次数足够，则一半修复竖直，一半远离
-    if len(rtn) >= cishu:
+            cishu_lianxian = int(abs(v_lianxian) // 10.2)
+            rtn = [ang_pen_lian] * cishu_lianxian
+            v_lianxian -= cishu_lianxian * 10.2
+            if abs(v_lianxian) > 0.1:
+                v_shuiping = sqrt(10.2**2 - v_lianxian**2)
+                pen_x, pen_y = v_lianxian * cos(ang_pen_lian) + v_shuiping * cos(ang_pen_chui), v_lianxian * sin(ang_pen_lian) + v_shuiping * sin(ang_pen_chui)
+                rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
+    if len(rtn) >= SHANBI_CISHU:
+        print(f"angle rtn={[round(api.r2a(i),3) for i in rtn]}")
         return rtn
-    rtn += [r_shu] * (cishu - len(rtn)) / 2 + [r_heng] * (cishu - len(rtn)) / 2
-    print(f"shanbiAngle rtn={[round(api.r2a(i),3) for i in rtn]}")
+    rtn += [ang_pen_chui] * (SHANBI_CISHU - len(rtn))
+    print(f"angle rtn={[round(api.r2a(i),3) for i in rtn]}")
     return rtn
 
 
