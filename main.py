@@ -18,11 +18,21 @@ TARGET_CISHU = 5
 MAX_SPEED = 30
 SHANBI_TIME = 2
 
-def v(me:api.Atom):
+def v(v: float):
     # 动量守恒 m1v1+api.
-     return api.SHOOT_AREA_RATIO * api.DELTA_VELOCITY - sqrt(me.vx**2 + me.vy**2)
+     return api.SHOOT_AREA_RATIO * api.DELTA_VELOCITY - v
 def qw_c(mass, t):
     return mass / (t*100)
+
+def cal_cishu(v_chuizhi, me_v):
+    cishu = 0
+    v_delta = v(me_v)
+    while v_chuizhi > v_delta:
+        v_chuizhi -= v_delta
+        cishu += 1
+        me_v = sqrt(me_v**2 - v_delta**2)
+        v_delta = v(me_v)
+    return cishu
 
 def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
     rtn = []
@@ -40,13 +50,13 @@ def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
     ang_pen_chui =  api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi) +180)
     ang_pen_lian = api.angle_to_radian(api.relative_angle(0, 0, *u_xiangdui) + 180)
     if abs(v_chuizhi > 0.1):
-        
-        if abs(v_chuizhi) < v(me):
-            v_shuiping = sqrt(v(me)**2 - v_chuizhi**2)
+        me_v = api.distance(0,0,me.vx,me.vy)
+        if abs(v_chuizhi) < v(me_v):
+            v_shuiping = sqrt(v(me_v)**2 - v_chuizhi**2)
             pen_x, pen_y = v_chuizhi * cos(ang_pen_chui) + v_shuiping * cos(ang_pen_lian), v_chuizhi * sin(ang_pen_chui) + v_shuiping * sin(ang_pen_lian)
             rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
         else:
-            cishu_chuizhi = int(abs(v_chuizhi) // v(me))
+            cishu_chuizhi = cal_cishu(v_chuizhi, me_v)
             if cishu_chuizhi >= cishu:
                 rtn = [ang_pen_chui] * cishu
             else:
@@ -56,10 +66,8 @@ def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
                 v_shuiping = sqrt(v(me)**2 - v_chuizhi**2)
                 pen_x, pen_y = v_chuizhi * cos(ang_pen_chui) + v_shuiping * cos(ang_pen_lian), v_chuizhi * sin(ang_pen_chui) + v_shuiping * sin(ang_pen_lian)
                 rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
-    if len(rtn) >= cishu:
-        print(f"angle rtn={[round(api.r2a(i),3) for i in rtn]}")
-        return rtn
-    rtn += [ang_pen_lian] * (cishu - len(rtn))
+    if len(rtn) < cishu:
+        rtn += [ang_pen_lian] * (cishu - len(rtn))
     print(f"angle rtn={[round(api.r2a(i),3) for i in rtn]}")
     return rtn
 
@@ -79,29 +87,29 @@ def shanbiAngle(me: api.Atom, atom: api.Atom) -> list[float]:
     print(f"v_lianxian={v_lianxian}, v_chuizhi={v_chuizhi}")
     ang_pen_chui =  api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi) +180)
     ang_pen_lian = api.angle_to_radian(api.relative_angle(0, 0, *u_xiangdui) + 180)
-    if abs(v_lianxian > 0.1):
-        if abs(v_lianxian) < v(me):
-            v_shuiping = sqrt(v(me)**2 - v_lianxian**2)
+    if v_lianxian > 0.1:
+        me_v = api.distance(0,0,me.vx,me.vy)
+        if abs(v_lianxian) < v(me_v):
+            v_shuiping = sqrt(v(me_v)**2 - v_lianxian**2)
             pen_x, pen_y = v_lianxian * cos(ang_pen_lian) + v_shuiping * cos(ang_pen_chui), v_lianxian * sin(ang_pen_lian) + v_shuiping * sin(ang_pen_chui)
             rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
         else:
-            cishu_lianxian = int(abs(v_lianxian) // v(me))
+            cishu_lianxian = cal_cishu(v_lianxian, me_v)
             rtn = [ang_pen_lian] * cishu_lianxian
-            v_lianxian -= cishu_lianxian * v(me)
-            if abs(v_lianxian) > 0.1:
+            v_lianxian -= cishu_lianxian * v(me_v)
+            if v_lianxian> 0.1:
                 v_shuiping = sqrt(v(me)**2 - v_lianxian**2)
                 pen_x, pen_y = v_lianxian * cos(ang_pen_lian) + v_shuiping * cos(ang_pen_chui), v_lianxian * sin(ang_pen_lian) + v_shuiping * sin(ang_pen_chui)
                 rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
-    if len(rtn) >= SHANBI_CISHU:
-        print(f"angle rtn={[round(api.r2a(i),3) for i in rtn]}")
-        return rtn
-    rtn += [ang_pen_chui] * (SHANBI_CISHU - len(rtn))
+    if len(rtn) < SHANBI_CISHU:
+        rtn += [ang_pen_chui] * (SHANBI_CISHU - len(rtn))
     print(f"angle rtn={[round(api.r2a(i),3) for i in rtn]}")
     return rtn
 
 
 def get_shoot_change_velocity(me, radian) -> tuple[float, float]:  # x,y
-    return -cos(radian) * v(me), -sin(radian) * v(me)
+    me_v = api.distance(0, 0, me.vx, me.vy)
+    return -cos(radian) * v(me_v), -sin(radian) * v(me_v)
 
 
 def print_atom(atom: api.Atom):
