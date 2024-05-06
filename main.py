@@ -25,6 +25,7 @@ def qw_c(mass, t):
     return mass / (t*100)
 
 def cal_cishu(v_chuizhi, me_v):
+    # TODO: 减少时间
     cishu = 0
     v_delta = v(me_v)
     while v_chuizhi > v_delta:
@@ -130,13 +131,16 @@ def print_atom(atom: api.Atom):
 
 
 def hebing(angs):
-    x, y = 0, 0
-    for i in angs:
-        xx = cos(i)
-        yy = sin(i)
-        x += xx
-        y += yy
-    return api.relative_radian(0, 0, x, y)
+    ang = []
+    for i in range(len(angs[0])):
+        x, y = 0, 0
+        for j in angs:
+            xx = cos(j[i])
+            yy = sin(j[i])
+            x += xx
+            y += yy
+        ang.append(api.relative_radian(0, 0, x, y))
+    return ang
 
 
 def cal_t(me: api.Atom, atom: api.Atom, vx, vy):
@@ -171,24 +175,26 @@ def handle_shanbi(context: api.RawContext):
             elif t <= -1:
                 print("No collide")
                 continue
-            cr = (e.vx - me.vx) * (e.y - me.y) - (e.vy - me.vy) * (e.x - me.x)
+            # cr = (e.vx - me.vx) * (e.y - me.y) - (e.vy - me.vy) * (e.x - me.x)
             # print(
             #     f"shanbi cr={cr}, jd={api.r2a(jd)} angle={api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy)}"
             # )
-            if cr >= 0:
-                ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) + 90)
-            else:
-                ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) - 90)
+            # if cr >= 0:
+            #     ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) + 90)
+            # else:
+            #     ang = api.a2r(api.relative_angle(0, 0, e.vx - me.vx, e.vy - me.vy) - 90)
             # angs.extend(jiaodu(me, e, True))
-            angs.append(ang)
+            # angs.append(ang)
+            angs.append(shanbiAngle(me, e))
     print(f"angs: {angs}")
-    ang = hebing(angs)
+    
     if angs:
-        print(f"final angle: {round(api.r2a(ang),3)}")
+        ang = hebing(angs)
+        print(f"final angle: {[round(api.r2a(i),3) for i in ang]}")
         while not q.empty():
             q.get()
-        for i in range(SHANBI_CISHU):
-            q.put(data(False, ang))
+        for i in ang:
+            q.put(data(False, i))
     print("******shanbi******")
 
 
@@ -227,27 +233,20 @@ def handle_target(context: api.RawContext):
     print(f"me: {print_atom(context.me)}")
     # 先看不改变方向。如果速度超过 MAX_SPEED 则不动
     if me.vx != 0 or me.vy != 0:
-        enemies = [i for i in context.enemies if i.mass < me.mass and (i.vx**2 + i.vy**2) < 10000]
+        enemies = [i for i in context.enemies if i.mass < me.mass and api.distance(0, 0, i.vx, i.vy) < 100]
         atoms = me.get_forward_direction_atoms(enemies)
         atoms.sort(key=lambda x: me.distance_to(x))
         print(f"stright forward atoms:{[print_atom(i) for i in atoms]}")
         if atoms:
+            atoms.sort(key = lambda x:x.mass, reverse=True)
             i = atoms[0]
-            for j in atoms:
-                if i.mass < j.mass < me.mass:
-                    i = j
             print(f"stright forward atom:{print_atom(i)}")
             speed = api.distance(0, 0, me.vx, me.vy)
             if speed >= MAX_SPEED:
                 t = cal_t(me, i, 0, 0)
                 qw = qw_c(i.mass, t)
             else:
-                cishu = int(
-                    min(
-                        (MAX_SPEED - speed) // v(me),
-                        math.log(i.mass / me.mass, 1 - api.SHOOT_AREA_RATIO),
-                    )
-                )
+                cishu = int(math.log(i.mass / me.mass) / math.log(1 - api.SHOOT_AREA_RATIO))
                 if cishu > TARGET_CISHU:
                     cishu = TARGET_CISHU
                 x, y = 0, 0
@@ -260,7 +259,7 @@ def handle_target(context: api.RawContext):
                 )
                 t = cal_t(me, i, x, y)
                 qw = qw_c(
-                    i.mass - me.mass * (1 - api.SHOOT_AREA_RATIO) ** cishu + me.mass,
+                    i.mass - me.mass * ((1 - api.SHOOT_AREA_RATIO) ** cishu),
                     t,
                 )
                 if i.type == "npc" or i.type == "player":
@@ -291,11 +290,11 @@ def handle_target(context: api.RawContext):
             y += yy
         print(f"shoot change to velocity: x={x + me.vx}, y={y + me.vy} cishu: {cishu}")
         t = cal_t(me, i, x, y)
-        qw = qw_c(i.mass - me.mass * (1 - api.SHOOT_AREA_RATIO) ** cishu + me.mass, t)
+        qw = qw_c(i.mass - me.mass * (1 - api.SHOOT_AREA_RATIO) ** cishu , t)
         if i.type == "npc" or i.type == "player":
             qw -= 500
         print(f"qw:{qw} t:{t} cishu:{cishu}")
-        if qw > max_qw *1.05 and t >= -0.5:
+        if qw > max_qw *1.02 and t >= -0.5:
             # print(f"{print_atom(i)} qw:{qw} t:{t}")
             max_qw = qw
             max_atom = i
