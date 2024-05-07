@@ -18,22 +18,9 @@ TARGET_CISHU = 5
 MAX_SPEED = 30
 SHANBI_TIME = 2
 
-def v(v: float):
-    # 动量守恒 m1v1+api.
-     return api.SHOOT_AREA_RATIO * api.DELTA_VELOCITY - v
 def qw_c(mass, t):
     return mass / (t*100)
 
-def cal_cishu(v_chuizhi, me_v):
-    # TODO: 减少时间
-    cishu = 0
-    v_delta = v(me_v)
-    while v_chuizhi > v_delta:
-        v_chuizhi -= v_delta
-        cishu += 1
-        me_v = sqrt(me_v**2 - v_delta**2)
-        v_delta = v(me_v)
-    return cishu
 
 def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
     rtn = []
@@ -48,23 +35,25 @@ def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
     # 垂直连线方向的速度
     print(f"angle_xiangdui = {round(api.relative_angle(0, 0, *u_xiangdui),3)}, angle_v_xiangdui = {round(api.relative_angle(0, 0,* v_xiangdui),3)}")
     print(f"v_lianxian = {v_lianxian}, v_chuizhi = {v_chuizhi}")
-    ang_pen_chui =  api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi) +180)
+    ang_pen_chui =  api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi))
     ang_pen_lian = api.angle_to_radian(api.relative_angle(0, 0, *u_xiangdui) + 180)
-    if abs(v_chuizhi > 0.1):
-        me_v = api.distance(0,0,me.vx,me.vy)
-        if abs(v_chuizhi) < v(me_v):
-            v_shuiping = sqrt(v(me_v)**2 - v_chuizhi**2)
+    if abs(v_chuizhi) > 0.1:
+        if abs(v_chuizhi) < 10.2:
+            v_shuiping = sqrt(10.2**2 - v_chuizhi**2)
             pen_x, pen_y = v_chuizhi * cos(ang_pen_chui) + v_shuiping * cos(ang_pen_lian), v_chuizhi * sin(ang_pen_chui) + v_shuiping * sin(ang_pen_lian)
             rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
         else:
-            cishu_chuizhi = cal_cishu(v_chuizhi, me_v)
+            if v_chuizhi < 0:
+                v_chuizhi = -v_chuizhi
+                ang_pen_chui = api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi) + 180)
+            cishu_chuizhi = int(v_chuizhi // 10.2)
             if cishu_chuizhi >= cishu:
                 rtn = [ang_pen_chui] * cishu
             else:
                 rtn = [ang_pen_chui] * cishu_chuizhi
-            v_chuizhi -= cishu_chuizhi * v(me)
+            v_chuizhi -= cishu_chuizhi * 10.2
             if abs(v_chuizhi) > 0.1:
-                v_shuiping = sqrt(v(me)**2 - v_chuizhi**2)
+                v_shuiping = sqrt(10.2**2 - v_chuizhi**2)
                 pen_x, pen_y = v_chuizhi * cos(ang_pen_chui) + v_shuiping * cos(ang_pen_lian), v_chuizhi * sin(ang_pen_chui) + v_shuiping * sin(ang_pen_lian)
                 rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
     if len(rtn) < cishu:
@@ -86,22 +75,22 @@ def shanbiAngle(me: api.Atom, atom: api.Atom) -> list[float]:
     # 垂直连线方向的速度
     print(f"angle_xiangdui = {api.relative_angle(0, 0, *u_xiangdui)}, angle_v_xiangdui = {api.relative_angle(0, 0,* v_xiangdui)}")
     print(f"v_lianxian={v_lianxian}, v_chuizhi={v_chuizhi}")
-    ang_pen_chui =  api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi) +180)
-    ang_pen_lian = api.angle_to_radian(api.relative_angle(0, 0, *u_xiangdui) + 180)
-    if v_lianxian > 0.1:
-        me_v = api.distance(0,0,me.vx,me.vy)
-        if abs(v_lianxian) < v(me_v):
-            v_shuiping = sqrt(v(me_v)**2 - v_lianxian**2)
-            pen_x, pen_y = v_lianxian * cos(ang_pen_lian) + v_shuiping * cos(ang_pen_chui), v_lianxian * sin(ang_pen_lian) + v_shuiping * sin(ang_pen_chui)
-            rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
-        else:
-            cishu_lianxian = cal_cishu(v_lianxian, me_v)
-            rtn = [ang_pen_lian] * cishu_lianxian
-            v_lianxian -= cishu_lianxian * v(me_v)
-            if v_lianxian> 0.1:
-                v_shuiping = sqrt(v(me)**2 - v_lianxian**2)
-                pen_x, pen_y = v_lianxian * cos(ang_pen_lian) + v_shuiping * cos(ang_pen_chui), v_lianxian * sin(ang_pen_lian) + v_shuiping * sin(ang_pen_chui)
-                rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
+    ang_pen_chui =  api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi) + 180)
+    ang_pen_lian = api.angle_to_radian(api.relative_angle(0, 0, *u_xiangdui))
+    # if v_lianxian > 0.1:
+    #     me_v = api.distance(0,0,me.vx,me.vy)
+    #     if abs(v_lianxian) < 10.2:
+    #         v_shuiping = sqrt(10.2**2 - v_lianxian**2)
+    #         pen_x, pen_y = v_lianxian * cos(ang_pen_lian) + v_shuiping * cos(ang_pen_chui), v_lianxian * sin(ang_pen_lian) + v_shuiping * sin(ang_pen_chui)
+    #         rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
+    #     else:
+    #         cishu_lianxian = cal_cishu(v_lianxian, me_v, SHANBI_CISHU-1)
+    #         rtn = [ang_pen_lian] * cishu_lianxian
+    #         v_lianxian -= cishu_lianxian * 10.2
+    #         if v_lianxian> 0.1 and v_lianxian < 10.2:
+    #             v_shuiping = sqrt(10.2**2 - v_lianxian**2)
+    #             pen_x, pen_y = v_lianxian * cos(ang_pen_lian) + v_shuiping * cos(ang_pen_chui), v_lianxian * sin(ang_pen_lian) + v_shuiping * sin(ang_pen_chui)
+    #             rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
     if len(rtn) < SHANBI_CISHU:
         rtn += [ang_pen_chui] * (SHANBI_CISHU - len(rtn))
     print(f"angle rtn={[round(api.r2a(i),3) for i in rtn]}")
@@ -110,7 +99,7 @@ def shanbiAngle(me: api.Atom, atom: api.Atom) -> list[float]:
 
 def get_shoot_change_velocity(me, radian) -> tuple[float, float]:  # x,y
     me_v = api.distance(0, 0, me.vx, me.vy)
-    return -cos(radian) * v(me_v), -sin(radian) * v(me_v)
+    return -cos(radian) * 10.2, -sin(radian) * 10.2
 
 
 def print_atom(atom: api.Atom):
@@ -151,9 +140,9 @@ def cal_t(me: api.Atom, atom: api.Atom, vx, vy):
     vy = me.vy + vy - atom.vy
     print(f"cal_t x={x}, y={y}, vx={vx}, vy={vy}, t={(x / vx + y / vy) / 2}")
     if x / vx >= -0.2 and y / vy >= -0.2:
-        return (x / vx + y / vy) / 2
+        return abs((x / vx + y / vy) / 2)
     else:
-        return -1
+        return 999
 
 
 def handle_shanbi(context: api.RawContext):
@@ -233,20 +222,24 @@ def handle_target(context: api.RawContext):
     print(f"me: {print_atom(context.me)}")
     # 先看不改变方向。如果速度超过 MAX_SPEED 则不动
     if me.vx != 0 or me.vy != 0:
-        enemies = [i for i in context.enemies if i.mass < me.mass and api.distance(0, 0, i.vx, i.vy) < 100]
-        atoms = me.get_forward_direction_atoms(enemies)
+        enemies = [i for i in context.enemies if api.distance(0, 0, i.vx, i.vy) < 100]
+        atoms = me.get_forward_direction_atoms(context.enemies)
         atoms.sort(key=lambda x: me.distance_to(x))
         print(f"stright forward atoms:{[print_atom(i) for i in atoms]}")
         if atoms:
-            atoms.sort(key = lambda x:x.mass, reverse=True)
-            i = atoms[0]
-            print(f"stright forward atom:{print_atom(i)}")
+            biggest_atom = None
+            for i in atoms:
+                if i.mass >= me.mass:
+                    break
+                if not biggest_atom or i.mass > biggest_atom.mass:
+                    biggest_atom = i
+            print(f"stright forward biggest atom:{print_atom(biggest_atom)}")
             speed = api.distance(0, 0, me.vx, me.vy)
             if speed >= MAX_SPEED:
                 t = cal_t(me, i, 0, 0)
                 qw = qw_c(i.mass, t)
             else:
-                cishu = int(math.log(i.mass / me.mass) / math.log(1 - api.SHOOT_AREA_RATIO))
+                cishu = int(math.log(biggest_atom.mass / me.mass) / math.log(1 - api.SHOOT_AREA_RATIO))
                 if cishu > TARGET_CISHU:
                     cishu = TARGET_CISHU
                 x, y = 0, 0
@@ -259,30 +252,29 @@ def handle_target(context: api.RawContext):
                 )
                 t = cal_t(me, i, x, y)
                 qw = qw_c(
-                    i.mass - me.mass * ((1 - api.SHOOT_AREA_RATIO) ** cishu),
+                    i.mass - me.mass * (api.SHOOT_AREA_RATIO ** cishu),
                     t,
                 )
                 if i.type == "npc" or i.type == "player":
-                    qw -= 500
+                    qw *= 0.8
                 max_cishu = cishu
                 shoot = True
-            max_qw = qw + 100
+            max_qw = qw *1.1
             max_atom = i
             print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
     # 再找没遮挡的目标
     enemies = [
-        i for i in context.enemies if i.mass < me.mass * (1 - api.SHOOT_AREA_RATIO) and i.mass >= me.mass * api.SHOOT_AREA_RATIO and (i.vx**2 + i.vy**2) < 90000
+        i for i in context.enemies if i.mass < me.mass * (1 - api.SHOOT_AREA_RATIO) and i.mass >= me.mass * api.SHOOT_AREA_RATIO and api.distance(0, 0, i.vx, i.vy) < 100
     ]
     for i in enemies:
-        if api.distance(0, 0, i.vx, i.vy) > 1000:
-            continue
-        cishu = int(math.log(i.mass / me.mass, 1 - api.SHOOT_AREA_RATIO))
+        cishu = int(math.log(i.mass / me.mass) / math.log(1 - api.SHOOT_AREA_RATIO))
         if cishu > TARGET_CISHU:
             cishu = TARGET_CISHU
         if have_bigger_atom(context, me, i, cishu):
             continue
         print()
         print(f"atom: {print_atom(i)}")
+        print(f"cishu: {cishu}")
         x, y = 0, 0
         for j in Angle(me, i, cishu):
             xx, yy = get_shoot_change_velocity(me, j)
@@ -290,9 +282,9 @@ def handle_target(context: api.RawContext):
             y += yy
         print(f"shoot change to velocity: x={x + me.vx}, y={y + me.vy} cishu: {cishu}")
         t = cal_t(me, i, x, y)
-        qw = qw_c(i.mass - me.mass * (1 - api.SHOOT_AREA_RATIO) ** cishu , t)
+        qw = qw_c(i.mass - me.mass * (api.SHOOT_AREA_RATIO ** cishu) , t)
         if i.type == "npc" or i.type == "player":
-            qw -= 500
+            qw *= 0.8
         print(f"qw:{qw} t:{t} cishu:{cishu}")
         if qw > max_qw *1.02 and t >= -0.5:
             # print(f"{print_atom(i)} qw:{qw} t:{t}")
