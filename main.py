@@ -19,11 +19,9 @@ MAX_SPEED = 30
 SHANBI_TIME = 2
 
 def qw_c(mass, t):
-    return mass / t
+    return mass * 10 / t
 
-
-def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
-    rtn = []
+def speeds(me: api.Atom, atom: api.Atom) -> tuple[float, float, float, float]: # lianxian speed, chuizhi speed, lianxian radian, chuizhi radian
     d = api.distance(me.x, me.y, atom.x, atom.y)
     u_xiangdui = ((atom.x - me.x) / d, (atom.y - me.y) / d) # 连线方向上的单位向量
     v_xiangdui = (me.vx - atom.vx, me.vy - atom.vy) # 相对速度
@@ -32,11 +30,19 @@ def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
     # 垂直连线方向上的速度
     u_chuizhi = (-u_xiangdui[1], u_xiangdui[0])
     v_chuizhi =  v_xiangdui[0] * u_chuizhi[0] + v_xiangdui[1] * u_chuizhi[1]
-    # 垂直连线方向的速度
+    return v_lianxian, v_chuizhi, api.relative_angle(0, 0, *u_xiangdui), api.relative_angle(0, 0, *u_chuizhi)
+
+def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
+    rtn = []
+    d = api.distance(me.x, me.y, atom.x, atom.y)
+    u_xiangdui = ((atom.x - me.x) / d, (atom.y - me.y) / d) # 连线方向上的单位向量
+    v_xiangdui = (me.vx - atom.vx, me.vy - atom.vy) # 相对速度
+    # 沿连线方向上的速度
+    v_lianxian, v_chuizhi , ang_lianxian, ang_chuizhi = speeds(me, atom)
     print(f"angle_xiangdui = {round(api.relative_angle(0, 0, *u_xiangdui),3)}, angle_v_xiangdui = {round(api.relative_angle(0, 0,* v_xiangdui),3)}")
     print(f"v_lianxian = {v_lianxian}, v_chuizhi = {v_chuizhi}")
-    ang_pen_chui =  api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi))
-    ang_pen_lian = api.angle_to_radian(api.relative_angle(0, 0, *u_xiangdui) + 180)
+    ang_pen_lian = api.angle_to_radian(ang_lianxian + 180)
+    ang_pen_chui = api.angle_to_radian(ang_chuizhi)
     if abs(v_chuizhi) > 0.1 and cishu > 0:
         if abs(v_chuizhi) < 10.2:
             v_shuiping = sqrt(10.2**2 - v_chuizhi**2)
@@ -45,7 +51,7 @@ def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
         else:
             if v_chuizhi < 0:
                 v_chuizhi = -v_chuizhi
-                ang_pen_chui = api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi) + 180)
+                ang_pen_chui = api.angle_to_radian(ang_chuizhi + 180)
             cishu_chuizhi = int(v_chuizhi // 10.2)
             if cishu_chuizhi >= cishu:
                 rtn = [ang_pen_chui] * cishu
@@ -97,8 +103,7 @@ def shanbiAngle(me: api.Atom, atom: api.Atom) -> list[float]:
     return rtn
 
 
-def get_shoot_change_velocity(me, radian) -> tuple[float, float]:  # x,y
-    me_v = api.distance(0, 0, me.vx, me.vy)
+def get_shoot_change_velocity(radian) -> tuple[float, float]:  # x,y
     return -cos(radian) * 10.2, -sin(radian) * 10.2
 
 
@@ -242,23 +247,32 @@ def handle_target(context: api.RawContext):
                 cishu = int(math.log(biggest_atom.mass / me.mass) / math.log(1 - api.SHOOT_AREA_RATIO))
                 if cishu > TARGET_CISHU:
                     cishu = TARGET_CISHU
+                angles = Angle(me, i, cishu)
                 x, y = 0, 0
-                for j in Angle(me, i, cishu):
-                    xx, yy = get_shoot_change_velocity(me, j)
+                for j in range(len(angles)):
+                    xx, yy = get_shoot_change_velocity(angles[j])
                     x += xx
                     y += yy
-                print(
-                    f"shoot change to velocity: x={x + me.vx}, y={y + me.vy} cishu: {cishu}"
-                )
-                t = cal_t(me, i, x, y)
-                qw = qw_c(
-                    i.mass - me.mass * (api.SHOOT_AREA_RATIO ** cishu),
-                    t,
-                )
-                if i.type == "npc" or i.type == "player":
-                    qw *= 0.8
-                max_cishu = cishu
-                shoot = True
+                    print(f"shoot {j+1} time change to velocity: x={x + me.vx}, y={y + me.vy} cishu: {cishu}")
+                    t = cal_t(me, i, x, y)
+                    qw = qw_c(i.mass - me.mass * (api.SHOOT_AREA_RATIO ** cishu) , t)
+                    if i.type == "npc" or i.type == "player":
+                        qw *= 0.8
+                    print(f"qw:{qw} t:{t} cishu:{cishu}")
+                    if qw > max_qw *1.02 and t >= -0.5:
+                        # print(f"{print_atom(i)} qw:{qw} t:{t}")
+                        max_qw = qw
+                        max_atom = i
+                        max_cishu = j+1
+                        shoot = True
+                        print(
+                            f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}, max_cishu: {max_cishu}"
+                        )
+                    # if lianxian speed > MAX_SPEED then break
+                    v_lianxian, v_chuizhi, ang_lianxian, ang_chuizhi = speeds(me, i)
+                    v_lianxian += x * cos(ang_lianxian) + y * sin(ang_lianxian)
+                    if api.distance(x + me.vx, y + me.vy, 0, 0) >= MAX_SPEED:
+                        break
             max_qw = qw *1.1
             max_atom = i
             print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
@@ -278,7 +292,7 @@ def handle_target(context: api.RawContext):
         angles = Angle(me, i, cishu)
         x, y = 0, 0
         for j in range(len(angles)):
-            xx, yy = get_shoot_change_velocity(me, angles[j])
+            xx, yy = get_shoot_change_velocity(angles[j])
             x += xx
             y += yy
             print(f"shoot {j+1} time change to velocity: x={x + me.vx}, y={y + me.vy} cishu: {cishu}")
@@ -296,6 +310,11 @@ def handle_target(context: api.RawContext):
                 print(
                     f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}, max_cishu: {max_cishu}"
                 )
+            # if lianxian speed > MAX_SPEED then break
+            v_lianxian, v_chuizhi, ang_lianxian, ang_chuizhi = speeds(me, i)
+            v_lianxian += x * cos(ang_lianxian) + y * sin(ang_lianxian)
+            if api.distance(x + me.vx, y + me.vy, 0, 0) >= MAX_SPEED:
+                break
     if max_atom:
         if shoot:
             if not me.colliding:
