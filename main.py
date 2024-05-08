@@ -19,7 +19,7 @@ MAX_SPEED = 30
 SHANBI_TIME = 2
 
 def qw_c(mass, t):
-    return mass / (t*100)
+    return mass / t
 
 
 def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
@@ -37,7 +37,7 @@ def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
     print(f"v_lianxian = {v_lianxian}, v_chuizhi = {v_chuizhi}")
     ang_pen_chui =  api.angle_to_radian(api.relative_angle(0, 0, *u_chuizhi))
     ang_pen_lian = api.angle_to_radian(api.relative_angle(0, 0, *u_xiangdui) + 180)
-    if abs(v_chuizhi) > 0.1:
+    if abs(v_chuizhi) > 0.1 and cishu > 0:
         if abs(v_chuizhi) < 10.2:
             v_shuiping = sqrt(10.2**2 - v_chuizhi**2)
             pen_x, pen_y = v_chuizhi * cos(ang_pen_chui) + v_shuiping * cos(ang_pen_lian), v_chuizhi * sin(ang_pen_chui) + v_shuiping * sin(ang_pen_lian)
@@ -52,7 +52,7 @@ def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
             else:
                 rtn = [ang_pen_chui] * cishu_chuizhi
             v_chuizhi -= cishu_chuizhi * 10.2
-            if abs(v_chuizhi) > 0.1:
+            if abs(v_chuizhi) > 0.1 and cishu_chuizhi < cishu:
                 v_shuiping = sqrt(10.2**2 - v_chuizhi**2)
                 pen_x, pen_y = v_chuizhi * cos(ang_pen_chui) + v_shuiping * cos(ang_pen_lian), v_chuizhi * sin(ang_pen_chui) + v_shuiping * sin(ang_pen_lian)
                 rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
@@ -275,26 +275,27 @@ def handle_target(context: api.RawContext):
         print()
         print(f"atom: {print_atom(i)}")
         print(f"cishu: {cishu}")
+        angles = Angle(me, i, cishu)
         x, y = 0, 0
-        for j in Angle(me, i, cishu):
-            xx, yy = get_shoot_change_velocity(me, j)
+        for j in range(len(angles)):
+            xx, yy = get_shoot_change_velocity(me, angles[j])
             x += xx
             y += yy
-        print(f"shoot change to velocity: x={x + me.vx}, y={y + me.vy} cishu: {cishu}")
-        t = cal_t(me, i, x, y)
-        qw = qw_c(i.mass - me.mass * (api.SHOOT_AREA_RATIO ** cishu) , t)
-        if i.type == "npc" or i.type == "player":
-            qw *= 0.8
-        print(f"qw:{qw} t:{t} cishu:{cishu}")
-        if qw > max_qw *1.02 and t >= -0.5:
-            # print(f"{print_atom(i)} qw:{qw} t:{t}")
-            max_qw = qw
-            max_atom = i
-            max_cishu = cishu
-            shoot = True
-            print(
-                f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}, max_cishu: {max_cishu}"
-            )
+            print(f"shoot {j+1} time change to velocity: x={x + me.vx}, y={y + me.vy} cishu: {cishu}")
+            t = cal_t(me, i, x, y)
+            qw = qw_c(i.mass - me.mass * (api.SHOOT_AREA_RATIO ** cishu) , t)
+            if i.type == "npc" or i.type == "player":
+                qw *= 0.8
+            print(f"qw:{qw} t:{t} cishu:{cishu}")
+            if qw > max_qw *1.02 and t >= -0.5:
+                # print(f"{print_atom(i)} qw:{qw} t:{t}")
+                max_qw = qw
+                max_atom = i
+                max_cishu = j+1
+                shoot = True
+                print(
+                    f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}, max_cishu: {max_cishu}"
+                )
     if max_atom:
         if shoot:
             if not me.colliding:
