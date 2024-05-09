@@ -2,21 +2,36 @@ import math
 from collections import namedtuple
 from math import sin, cos, sqrt
 from queue import Queue
-
+import time
 import api
 from api import Atom
 
 data = namedtuple("data", ["is_space", "data"])
 step = ""
+start_time = 0
 q = Queue()
 spaces = 0
 AtomTuple = namedtuple(
-    "Atom", ["x", "y", "vx", "vy", "r", "theta", "mass", "type", "id"]
+    "Atom", ["x", "y", "vx", "vy", "radius", "radian", "mass", "type", "id"]
 )
 SHANBI_CISHU = 5
 TARGET_CISHU = 5
 MAX_SPEED = 30
 SHANBI_TIME = 2
+
+def mirror_atoms(atoms: list[api.Atom]):
+    rtn = atoms.copy()
+    height = api.get_context().get_env_height() #地图高度
+    width = api.get_context().get_env_width() #地图宽度
+    for i in atoms:# 四个墙壁都mirror
+        rtn.append(AtomTuple(-i.x, i.y, -i.vx, i.vy, i.radius, api.relative_radian(0, 0, -i.vx, i.vy), i.mass, i.type, i.id))
+        rtn.append(AtomTuple(i.x, -i.y, i.vx, -i.vy, i.radius, api.relative_radian(0, 0, i.vx, -i.vy), i.mass, i.type, i.id))
+        rtn.append(AtomTuple(width - i.x, i.y, -i.vx, i.vy, i.radius, api.relative_radian(0, 0, -i.vx, i.vy), i.mass, i.type, i.id))
+        rtn.append(AtomTuple(i.x, height - i.y, i.vx, -i.vy, i.radius, api.relative_radian(0, 0, i.vx, -i.vy), i.mass, i.type, i.id))
+    return rtn
+
+def distance_to(me, i):
+    return sqrt((me.x - i.x) ** 2 + (me.y - i.y) ** 2)
 
 def qw_c(mass, t):
     return mass * 10 / t
@@ -138,22 +153,33 @@ def hebing(angs):
 
 
 def cal_t(me: api.Atom, atom: api.Atom, vx, vy):
-    l = me.get_atom_surface_dist(atom)
-    r = api.relative_radian(me.x, me.y, atom.x, atom.y)
-    x, y = l * cos(r), l * sin(r)
+    jd = api.relative_radian(me.x, me.y, atom.x, atom.y)
+    x = atom.x - me.x - atom.radius* cos(jd) - me.radius * cos(jd)
+    y = atom.y - me.y - atom.radius* sin(jd) - me.radius * sin(jd)
+    if abs(x) < 1 and abs(y) < 1:
+        return 0.01
     vx = me.vx + vx - atom.vx
     vy = me.vy + vy - atom.vy
-    print(f"cal_t x={x}, y={y}, vx={vx}, vy={vy}, t={(x / vx + y / vy) / 2}")
-    if x / vx >= -0.2 and y / vy >= -0.2:
-        return abs((x / vx + y / vy) / 2)
+    if vx == 0:
+        t_x = 0
+    else:
+        t_x = x/vx
+    if vy == 0:
+        t_y = 0
+    else:
+        t_y = y/vy
+    print(f"cal_t x={x}, y={y}, vx={vx}, vy={vy}, t={(t_x + t_y) / 2}")
+    if t_x >= 0.2 and t_y >= 0.2:
+        return (t_x + t_y) / 2
     else:
         return 999
 
 
 def handle_shanbi(context: api.RawContext):
+    start_time = time.time()
     me = context.me
     enemies = [i for i in context.enemies.copy() if i.mass > me.mass]
-    enemies.sort(key=lambda x: me.distance_to(x))
+    enemies.sort(key=lambda x: distance_to(me, x))
     # print(f"shanbi me={print_atom(me)}")
     # print(f"shanbi enemies={[print_atom(i) for i in enemies]}")
     print("******shanbi******")
@@ -189,6 +215,7 @@ def handle_shanbi(context: api.RawContext):
             q.get()
         for i in ang:
             q.put(data(False, i))
+    print(f"handle_shanbi time: {time.time() - start_time}")
     print("******shanbi******")
 
 
@@ -209,8 +236,8 @@ def have_bigger_atom(context, me: api.Atom, i: api.Atom, cishu):
         if i.mass >= (me.mass * (1 - api.SHOOT_AREA_RATIO) ** cishu)
     ]
     if (
-        len(api.raycast(enemies, p_l, radian, me.distance_to(i)))
-        + len(api.raycast(enemies, p_r, radian, me.distance_to(i)))
+        len(api.raycast(enemies, p_l, radian, distance_to(me, i)))
+        + len(api.raycast(enemies, p_r, radian, distance_to(me, i)))
         > 0
     ):
         # print(f"have_bigger_atom {print_atom(i)}, continue")
@@ -219,6 +246,7 @@ def have_bigger_atom(context, me: api.Atom, i: api.Atom, cishu):
 
 
 def handle_target(context: api.RawContext):
+    start_time = time.time()
     me = context.me
 
     max_qw, max_atom, shoot = 0, None, False
@@ -228,16 +256,17 @@ def handle_target(context: api.RawContext):
     # 先看不改变方向。如果速度超过 MAX_SPEED 则不动
     if me.vx != 0 or me.vy != 0:
         enemies = [i for i in context.enemies if api.distance(0, 0, i.vx, i.vy) < 100]
+        enemies = mirror_atoms(enemies)
         atoms = me.get_forward_direction_atoms(context.enemies)
-        atoms.sort(key=lambda x: me.distance_to(x))
+        atoms.sort(key=lambda x: distance_to(me, x))
         print(f"stright forward atoms:{[print_atom(i) for i in atoms]}")
-        if atoms:
-            biggest_atom = None
-            for i in atoms:
-                if i.mass >= me.mass:
-                    break
-                if not biggest_atom or i.mass > biggest_atom.mass:
-                    biggest_atom = i
+        biggest_atom = None
+        for i in atoms:
+            if i.mass >= me.mass:
+                break
+            if not biggest_atom or i.mass > biggest_atom.mass:
+                biggest_atom = i
+        if atoms and biggest_atom:
             print(f"stright forward biggest atom:{print_atom(biggest_atom)}")
             speed = api.distance(0, 0, me.vx, me.vy)
             if speed >= MAX_SPEED:
@@ -269,17 +298,18 @@ def handle_target(context: api.RawContext):
                             f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}, max_cishu: {max_cishu}"
                         )
                     # if lianxian speed > MAX_SPEED then break
-                    v_lianxian, v_chuizhi, ang_lianxian, ang_chuizhi = speeds(me, i)
-                    v_lianxian += x * cos(ang_lianxian) + y * sin(ang_lianxian)
-                    if api.distance(x + me.vx, y + me.vy, 0, 0) >= MAX_SPEED:
-                        break
-            max_qw = qw *1.1
+                    # v_lianxian, v_chuizhi, ang_lianxian, ang_chuizhi = speeds(me, i)
+                    # v_lianxian += x * cos(ang_lianxian) + y * sin(ang_lianxian)
+                    # if api.distance(x + me.vx, y + me.vy, 0, 0) >= MAX_SPEED:
+                    #     break
+            max_qw = max_qw *1.1
             max_atom = i
             print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
     # 再找没遮挡的目标
     enemies = [
         i for i in context.enemies if i.mass < me.mass * (1 - api.SHOOT_AREA_RATIO) and i.mass >= me.mass * api.SHOOT_AREA_RATIO and api.distance(0, 0, i.vx, i.vy) < 100
     ]
+    enemies = mirror_atoms(enemies)
     for i in enemies:
         cishu = int(math.log(i.mass / me.mass) / math.log(1 - api.SHOOT_AREA_RATIO))
         if cishu > TARGET_CISHU:
@@ -330,6 +360,7 @@ def handle_target(context: api.RawContext):
     else:
         print("No atom, don't shoot")
     # q.put(data(True, 2))
+    print(f"handle_target time: {time.time() - start_time}")
     print("******target******")
 
 
