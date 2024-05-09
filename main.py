@@ -153,9 +153,10 @@ def hebing(angs):
 
 
 def cal_t(me: api.Atom, atom: api.Atom, vx, vy):
+    # TODO: rewrite
     jd = api.relative_radian(me.x, me.y, atom.x, atom.y)
-    x = atom.x - me.x - atom.radius* cos(jd) - me.radius * cos(jd)
-    y = atom.y - me.y - atom.radius* sin(jd) - me.radius * sin(jd)
+    x = atom.x - me.x - (atom.radius + me.radius) * cos(jd)
+    y = atom.y - me.y - (atom.radius + me.radius) * sin(jd)
     if abs(x) < 1 and abs(y) < 1:
         return 0.01
     vx = me.vx + vx - atom.vx
