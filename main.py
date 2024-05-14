@@ -357,6 +357,14 @@ def handle_target(context: api.RawContext):
     print(f"handle_target time: {time.time() - start_time}")
     print("******target******")
 
+def handle_target_new(context: api.RawContext):
+    start_time = time.time()
+    # 1. 查看不改变方向，不喷射的收益
+    enemies = [i for i in context.enemies if not i.is_bullet]
+    direct_atoms = context.me.get_forward_direction_atoms(enemies)
+    # 2. 查看不改变方向，喷射的收益
+    # 3. 查看改变方向的收益
+    
 
 def handler(context: api.RawContext):
     # print(f"me: {print_atom(context.me)}")
