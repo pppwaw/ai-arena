@@ -26,8 +26,8 @@ def mirror_atoms(atoms: list[api.Atom]):
     for i in atoms:# 四个墙壁都mirror
         rtn.append(AtomTuple(-i.x, i.y, -i.vx, i.vy, i.radius, api.relative_radian(0, 0, -i.vx, i.vy), i.mass, i.type, i.id))
         rtn.append(AtomTuple(i.x, -i.y, i.vx, -i.vy, i.radius, api.relative_radian(0, 0, i.vx, -i.vy), i.mass, i.type, i.id))
-        rtn.append(AtomTuple(width - i.x, i.y, -i.vx, i.vy, i.radius, api.relative_radian(0, 0, -i.vx, i.vy), i.mass, i.type, i.id))
-        rtn.append(AtomTuple(i.x, height - i.y, i.vx, -i.vy, i.radius, api.relative_radian(0, 0, i.vx, -i.vy), i.mass, i.type, i.id))
+        rtn.append(AtomTuple(2*width - i.x, i.y, -i.vx, i.vy, i.radius, api.relative_radian(0, 0, -i.vx, i.vy), i.mass, i.type, i.id))
+        rtn.append(AtomTuple(i.x, 2*height - i.y, i.vx, -i.vy, i.radius, api.relative_radian(0, 0, i.vx, -i.vy), i.mass, i.type, i.id))
     return rtn
 
 def distance_to(me, i):
@@ -55,7 +55,7 @@ def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
     # 沿连线方向上的速度
     v_lianxian, v_chuizhi , ang_lianxian, ang_chuizhi = speeds(me, atom)
     # print(f"angle_xiangdui = {round(api.relative_angle(0, 0, *u_xiangdui),3)}, angle_v_xiangdui = {round(api.relative_angle(0, 0,* v_xiangdui),3)}")
-    print(f"v_lianxian = {v_lianxian}, v_chuizhi = {v_chuizhi}")
+    # print(f"v_lianxian = {v_lianxian}, v_chuizhi = {v_chuizhi}")
     ang_pen_lian = api.angle_to_radian(ang_lianxian + 180)
     ang_pen_chui = api.angle_to_radian(ang_chuizhi)
     if abs(v_chuizhi) > 0.1 and cishu > 0:
@@ -79,7 +79,7 @@ def Angle(me: api.Atom, atom: api.Atom, cishu) -> list[float]:
                 rtn.append(api.relative_radian(0, 0, pen_x, pen_y))
     if len(rtn) < cishu:
         rtn += [ang_pen_lian] * (cishu - len(rtn))
-    print(f"angle rtn={[round(api.r2a(i),3) for i in rtn]}")
+    # print(f"angle rtn={[round(api.r2a(i),3) for i in rtn]}")
     return rtn
 
 
@@ -242,129 +242,81 @@ def have_bigger_atom(context, me: api.Atom, i: api.Atom, cishu):
 
 
 def handle_target(context: api.RawContext):
-    start_time = time.time()
-    me = context.me
-
-    max_qw, max_atom, shoot = 0, None, False
-
     print("******target******")
-    print(f"me: {print_atom(context.me)}")
-    # 先看不改变方向。如果速度超过 MAX_SPEED 则不动
-    if me.vx != 0 or me.vy != 0:
-        enemies = [i for i in context.enemies if api.distance(0, 0, i.vx, i.vy) < 100]
-        enemies = mirror_atoms(enemies)
-        atoms = me.get_forward_direction_atoms(context.enemies)
-        atoms.sort(key=lambda x: distance_to(me, x))
-        print(f"stright forward atoms:{[print_atom(i) for i in atoms]}")
-        biggest_atom = None
-        for i in atoms:
-            if i.mass >= me.mass:
-                break
-            if not biggest_atom or i.mass > biggest_atom.mass:
-                biggest_atom = i
-        if atoms and biggest_atom:
-            print(f"stright forward biggest atom:{print_atom(biggest_atom)}")
-            speed = api.distance(0, 0, me.vx, me.vy)
-            if speed >= MAX_SPEED:
-                t = cal_t(me, i, 0, 0)
-                qw = qw_c(me.mass + i.mass, t)
-            else:
-                cishu = int(math.log(biggest_atom.mass / me.mass) / math.log(1 - api.SHOOT_AREA_RATIO))
-                if cishu > TARGET_CISHU:
-                    cishu = TARGET_CISHU
-                angles = Angle(me, i, cishu)
-                x, y = 0, 0
-                for j in range(len(angles)):
-                    xx, yy = get_shoot_change_velocity(angles[j])
-                    x += xx
-                    y += yy
-                    print(f"shoot {j+1} time change to velocity: x={x + me.vx}, y={y + me.vy} cishu: {cishu}")
-                    t = cal_t(me, i, x, y)
-                    qw = qw_c(me.mass + i.mass - me.mass * (api.SHOOT_AREA_RATIO ** cishu) , t)
-                    if i.type == "npc" or i.type == "player":
-                        qw *= 0.8
-                    print(f"qw:{qw} t:{t} cishu:{cishu}")
-                    if qw > max_qw *1.02 and t >= -0.5:
-                        # print(f"{print_atom(i)} qw:{qw} t:{t}")
-                        max_qw = qw
-                        max_atom = i
-                        max_cishu = j+1
-                        shoot = True
-                        print(
-                            f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}, max_cishu: {max_cishu}"
-                        )
-                    # if lianxian speed > MAX_SPEED then break
-                    v_lianxian, v_chuizhi, ang_lianxian, ang_chuizhi = speeds(me, i)
-                    v_lianxian += x * cos(ang_lianxian) + y * sin(ang_lianxian)
-                    if api.distance(x + me.vx, y + me.vy, 0, 0) >= MAX_SPEED:
-                        break
-            max_qw = max_qw *1.1
-            max_atom = i
-            print(f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}")
-    # 再找没遮挡的目标
-    enemies = [
-        i for i in context.enemies if i.mass < me.mass * (1 - api.SHOOT_AREA_RATIO) and i.mass >= me.mass * api.SHOOT_AREA_RATIO and api.distance(0, 0, i.vx, i.vy) < 100
-    ]
-    enemies = mirror_atoms(enemies)
-    for i in enemies:
-        cishu = int(math.log(i.mass / me.mass) / math.log(1 - api.SHOOT_AREA_RATIO))
-        if cishu > TARGET_CISHU:
-            cishu = TARGET_CISHU
-        if have_bigger_atom(context, me, i, cishu):
-            continue
-        print(f"atom: {print_atom(i)}, cishu: {cishu}")
-        angles = Angle(me, i, cishu)
-        x, y = 0, 0
-        for j in range(len(angles)):
-            xx, yy = get_shoot_change_velocity(angles[j])
-            x += xx
-            y += yy
-            print(f"shoot {j+1} time change to velocity: x={x + me.vx}, y={y + me.vy} cishu: {cishu}")
-            t = cal_t(me, i, x, y)
-            qw = qw_c(me.mass + i.mass - me.mass * (api.SHOOT_AREA_RATIO ** cishu) , t)
-            if i.type == "npc" or i.type == "player":
-                qw *= 0.8
-            print(f"qw:{qw} t:{t} cishu:{cishu}")
-            if qw > max_qw *1.02 and t >= -0.5:
-                # print(f"{print_atom(i)} qw:{qw} t:{t}")
-                max_qw = qw
-                max_atom = i
-            max_cishu = len(angles)
-            shoot = True
-            print(
-                f"max_atom: {print_atom(max_atom)}, max_qw: {max_qw}, max_cishu: {max_cishu}"
-            )
-        # if lianxian speed > MAX_SPEED then break
-        # v_lianxian, v_chuizhi, ang_lianxian, ang_chuizhi = speeds(me, i)
-        # v_lianxian += x * cos(ang_lianxian) + y * sin(ang_lianxian)
-        # if api.distance(x + me.vx, y + me.vy, 0, 0) >= MAX_SPEED:
-        #     break
-    if max_atom:
-        if shoot:
-            if not me.colliding:
-                print(f"final atom: {print_atom(max_atom)}")
-                jd = Angle(me, max_atom, max_cishu)
-                print(f"final angle:{[round(api.r2a(i),3) for i in jd]}")
-                for i in jd:
-                    q.put(data(False, i))
-            else:
-                print("colliding, don't shoot")
-        else:
-            print("Don't need to shoot")
-    else:
-        print("No atom, don't shoot")
-    # q.put(data(True, 2))
-    print(f"handle_target time: {time.time() - start_time}")
-    print("******target******")
-
-def handle_target_new(context: api.RawContext):
+    print("me: ", print_atom(context.me))
     start_time = time.time()
+    max_atom, max_cishu, max_qw = None, 0, 0
     # 1. 查看不改变方向，不喷射的收益
     enemies = [i for i in context.enemies if not i.is_bullet]
+    # enemies = mirror_atoms(enemies)
     direct_atoms = context.me.get_forward_direction_atoms(enemies)
+    direct_atoms.sort(key=lambda x: distance_to(context.me, x))
+    biggest_atom = None
+    for i in direct_atoms:
+        if i.mass >= context.me.mass:
+            break
+        if not biggest_atom or i.mass > biggest_atom.mass:
+            biggest_atom = i
+    if direct_atoms and biggest_atom:
+        max_atom = biggest_atom
+        max_cishu = 0
+        max_qw = qw_c(context.me.mass + biggest_atom.mass, cal_t(context.me, biggest_atom, 0, 0))
     # 2. 查看不改变方向，喷射的收益
+    if biggest_atom:
+        m_cishu = int(math.log(biggest_atom.mass / context.me.mass) / math.log
+            (1 - api.SHOOT_AREA_RATIO))
+        x, y = 0, 0
+        for i in range(m_cishu):
+            me_jiaodu = api.relative_radian(0, 0, context.me.vx, context.me.vy)
+            xx, yy = get_shoot_change_velocity(me_jiaodu)
+            x += xx
+            y += yy
+            t = cal_t(context.me, biggest_atom, x, y)
+            qw = qw_c(context.me.mass + biggest_atom.mass - context.me.mass * (api.SHOOT_AREA_RATIO ** m_cishu) , t)
+            if biggest_atom.type == "npc" or biggest_atom.type == "player":
+                qw *= 0.8
+            if qw > max_qw *1.02 and t >= 0.01:
+                max_qw = qw
+                max_atom = biggest_atom
+                max_cishu = i+1
     # 3. 查看改变方向的收益
-    
+    enemies = [
+        i for i in context.enemies if i.mass <= context.me.mass * (1 - api.SHOOT_AREA_RATIO) and i.mass >= context.me.mass * api.SHOOT_AREA_RATIO and not i.is_bullet
+    ]
+    enemies = mirror_atoms(enemies)
+    enemies.sort(key=lambda x: distance_to(context.me, x))
+    # print(f"enemies: {[print_atom(i) for i in enemies]}")
+    for enemy in enemies:
+        
+        cishu = int(math.log(enemy.mass / context.me.mass) / math.log(1 - api.SHOOT_AREA_RATIO))
+        if cishu > TARGET_CISHU:
+            cishu = TARGET_CISHU
+        print(f"enemy: {print_atom(enemy)}")
+        if have_bigger_atom(context, context.me, enemy, cishu):
+            print(f"have_bigger_atom {print_atom(enemy)}, continue")
+            continue
+        
+        angles = Angle(context.me, enemy, cishu)
+        x, y = 0, 0
+        for i in range(len(angles)):
+            xx, yy = get_shoot_change_velocity(angles[i])
+            x += xx
+            y += yy
+            t = cal_t(context.me, enemy, x, y)
+            qw = qw_c(context.me.mass + enemy.mass - context.me.mass * (api.SHOOT_AREA_RATIO ** cishu) , t)
+            if enemy.type == "npc" or enemy.type == "player":
+                qw *= 0.8
+            if qw > max_qw *1.02 and t >= 0.01:
+                max_qw = qw
+                max_atom = enemy
+                max_cishu = i+1
+    if max_atom:
+        print(f"final atom: {print_atom(max_atom)}")
+        jd = Angle(context.me, max_atom, max_cishu)
+        for i in jd:
+            q.put(data(False, i))
+    print(f"handle_target time: {time.time() - start_time}")
+    print("******target******")
 
 def handler(context: api.RawContext):
     # print(f"me: {print_atom(context.me)}")
